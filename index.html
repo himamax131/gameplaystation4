@@ -49,7 +49,7 @@
  </section>
  <section id="page-sessions" class="hidden">
   <div class="sectionhead"><h2>سجل الجلسات</h2><div class="inline"><input id="sessionSearch" placeholder="بحث باسم العميل أو الجهاز" style="max-width:260px"><input id="sessionDate" type="date" style="max-width:170px"></div></div>
-  <div class="panel"><div class="tablewrap"><table><thead><tr><th>العميل / الجهاز</th><th>البداية</th><th>المدة</th><th>المطلوب</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody id="sessionsTable"></tbody></table></div></div>
+  <div class="panel"><div class="tablewrap"><table><thead><tr><th>الجهاز</th><th>العميل</th><th>الهاتف</th><th>البداية</th><th>النهاية</th><th>المطلوب</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="sessionsTable"></tbody></table></div></div>
  </section>
  <section id="page-expenses" class="hidden">
   <div class="grid2">
@@ -76,7 +76,7 @@
    </div>
    <p class="muted small">صافي الحركة = المبالغ المقبوضة خلال الفترة − المصروفات المسجلة خلال الفترة. قيمة الجلسات تشمل المبالغ المستحقة حتى لو لم تُحصّل كلها.</p>
   </div>
-  <div class="sectionhead"><h2>تفاصيل التحصيلات</h2></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الجهاز</th><th>العميل</th><th>النوع</th><th>المبلغ</th></tr></thead><tbody id="receiptsTable"></tbody></table></div></div>
+  <div class="sectionhead"><h2>تفاصيل التحصيلات</h2></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الجهاز</th><th>العميل</th><th>النوع</th><th>المبلغ</th><th>إجراء</th></tr></thead><tbody id="receiptsTable"></tbody></table></div></div>
  </section>
  <section id="page-settings" class="hidden">
   <div class="grid2">
@@ -234,6 +234,12 @@ async function remoteAddExpense(e){
 async function remoteDeleteExpense(id){
   const {error}=await sb.from('gamedesk_expenses').delete().eq('id',id);if(error)throw error;
 }
+async function remoteDeleteReceipt(id){
+  const {error}=await sb.from('gamedesk_receipts').delete().eq('id',id);if(error)throw error;
+}
+async function remoteDeleteSession(id){
+  const {error}=await sb.from('gamedesk_sessions').delete().eq('id',id);if(error)throw error;
+}
 async function remoteSaveSettings(){
   const row={id:'main',hour_price:settings.hourPrice,half_price:settings.halfPrice,minute_price:settings.minutePrice,sound_enabled:!!settings.soundEnabled,browser_notify:!!settings.browserNotify,shop_name:settings.shopName||'',alert_phone:settings.alertPhone||'',alert_repeat:settings.alertRepeat||3};
   const {error}=await sb.from('gamedesk_settings').upsert(row);if(error)throw error;
@@ -326,9 +332,22 @@ function renderSessions(){
   if(day)rows=rows.filter(s=>dateKey(new Date(s.startAt))===day);
   if(q)rows=rows.filter(s=>(s.customerName||'').toLowerCase().includes(q)||String(s.machine).includes(q)||(s.customerPhone||'').includes(q));
   const el=$('sessionsTable');if(!el)return;
-  el.innerHTML=rows.map(s=>{const remain=Math.max(0,Number(s.price)-Number(s.paid));
-    return `<tr><td>${esc(s.machine)}</td><td>${esc(s.customerName||'—')}</td><td>${esc(s.customerPhone||'—')}</td><td>${dtText(s.startAt)}</td><td>${dtText(s.endAt)}</td><td>${fmt(s.price)}</td><td>${fmt(s.paid)}</td><td>${fmt(remain)}</td><td>${s.status==='active'?'نشطة':'منتهية'}</td></tr>`;
-  }).join('')||'<tr><td colspan="9" class="empty">لا توجد جلسات</td></tr>';
+  el.innerHTML=rows.map(s=>{
+    const remain=Math.max(0,Number(s.price)-Number(s.paid));
+    const canDel=s.status!=='active';
+    return `<tr>
+      <td>${esc(s.machine)}</td>
+      <td>${esc(s.customerName||'—')}</td>
+      <td>${esc(s.customerPhone||'—')}</td>
+      <td>${dtText(s.startAt)}</td>
+      <td>${dtText(s.endAt)}</td>
+      <td>${fmt(s.price)}</td>
+      <td>${fmt(s.paid)}</td>
+      <td>${fmt(remain)}</td>
+      <td>${s.status==='active'?'نشطة':'منتهية'}</td>
+      <td>${canDel?`<button class="danger" onclick="window.deleteSession('${s.id}')">حذف</button>`:'—'}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="10" class="empty">لا توجد جلسات</td></tr>';
 }
 function renderExpenses(){
   const day=$('expenseFilterDate')&&$('expenseFilterDate').value;
@@ -338,9 +357,18 @@ function renderExpenses(){
   el.innerHTML=rows.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.category)}</td><td>${esc(e.note||'—')}</td><td class="moneyminus">${fmt(e.amount)}</td><td><button class="danger" onclick="window.deleteExpense('${e.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">لا توجد مصروفات</td></tr>';
 }
 function renderReceipts(){
-  const rows=receipts.slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0,80);
+  const from=$('reportFrom')?$('reportFrom').value:'',to=$('reportTo')?$('reportTo').value:'';
+  const inRange=d=>{if(!from&&!to)return true;if(from&&d<from)return false;if(to&&d>to)return false;return true};
+  let rows=receipts.filter(r=>inRange(r.date)).slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0,200);
   const el=$('receiptsTable');if(!el)return;
-  el.innerHTML=rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${dtText(r.createdAt)}</td><td>${esc(r.kind)}</td><td>${esc(r.customerName||'—')}</td><td>جهاز ${esc(r.machine||'—')}</td><td class="moneyplus">${fmt(r.amount)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد تحصيلات</td></tr>';
+  el.innerHTML=rows.map(r=>`<tr>
+    <td>${dtText(r.createdAt)}</td>
+    <td>${esc(r.machine||'—')}</td>
+    <td>${esc(r.customerName||'—')}</td>
+    <td>${esc(r.kind||'—')}</td>
+    <td class="moneyplus">${fmt(r.amount)}</td>
+    <td><button class="danger" onclick="window.deleteReceipt('${r.id}')">حذف</button></td>
+  </tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد تحصيلات</td></tr>';
 }
 function applySettings(){
   if($('hourPrice'))$('hourPrice').value=settings.hourPrice;
@@ -420,7 +448,9 @@ function extendSession(id){
     $('actionDialog').close();renderAll();toast('تم التمديد','أضيف '+mins+' دقيقة.');
   };
 }
-window.deleteExpense=id=>{if(!confirm('تأكيد حذف المصروف؟'))return;expenses=expenses.filter(e=>e.id!==id);saveLocal();if(online)remoteDeleteExpense(id).catch(console.warn);renderAll();toast('حُذف المصروف','')};
+window.deleteExpense=id=>{if(!confirm('تأكيد حذف المصروف؟'))return;expenses=expenses.filter(e=>e.id!==id);saveLocal();if(online)remoteDeleteExpense(id).catch(e=>{console.warn(e);queueOp({t:'expenseDel',id})});else queueOp({t:'expenseDel',id});renderAll();toast('حُذف المصروف','')};
+window.deleteReceipt=id=>{if(!confirm('تأكيد حذف التحصيل؟ سيؤثر على التقارير.'))return;receipts=receipts.filter(r=>r.id!==id);saveLocal();if(online)remoteDeleteReceipt(id).catch(e=>{console.warn(e);queueOp({t:'receiptDel',id})});else queueOp({t:'receiptDel',id});renderAll();if(!$('page-reports').classList.contains('hidden'))runReport();toast('حُذف التحصيل','')};
+window.deleteSession=id=>{const s=sessions.find(x=>x.id===id);if(!s)return;if(s.status==='active'){toast('لا يمكن حذف جلسة نشطة','أنهِ الجلسة أولاً');return}if(!confirm('تأكيد حذف الجلسة من السجل؟'))return;sessions=sessions.filter(x=>x.id!==id);saveLocal();if(online)remoteDeleteSession(id).catch(e=>{console.warn(e);queueOp({t:'sessionDel',id})});else queueOp({t:'sessionDel',id});renderAll();toast('حُذفت الجلسة','')};
 
 function runReport(){
   const from=$('reportFrom')?$('reportFrom').value:'',to=$('reportTo')?$('reportTo').value:'';
@@ -537,6 +567,8 @@ async function flushPending(){
       else if(op.t==='receipt')await remoteAddReceipt(op.d);
       else if(op.t==='expense')await remoteAddExpense(op.d);
       else if(op.t==='expenseDel')await remoteDeleteExpense(op.id);
+      else if(op.t==='receiptDel')await remoteDeleteReceipt(op.id);
+      else if(op.t==='sessionDel')await remoteDeleteSession(op.id);
       else if(op.t==='settings')await remoteSaveSettings();
     }catch(e){left.push(op);console.warn('pending',e)}
   }
