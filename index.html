@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827"><meta name="description" content="نظام إدارة محل بلايستيشن والحسابات اليومية">
+<link rel="manifest" href="manifest.json">
+<title>GameDesk | إدارة محل البلايستيشن</title>
+<style>
+:root{--bg:#0b1120;--panel:#121b2d;--panel2:#172338;--line:#26354d;--text:#f3f6fc;--muted:#9eacc2;--amber:#f5b942;--green:#35c98a;--red:#ff6878;--blue:#6ba8ff;--radius:18px}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top right,#182746 0,#0b1120 55%);font-family:Tahoma,Arial,sans-serif;color:var(--text);min-height:100vh}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:12px;padding:11px 15px;font-weight:700;background:var(--amber);color:#201704}button.secondary{background:#26354d;color:var(--text)}button.danger{background:#512733;color:#ffdce0}button.success{background:#174b3a;color:#b9ffe0}button:disabled{opacity:.45;cursor:not-allowed}.hidden{display:none!important}.wrap{max-width:1400px;margin:auto;padding:20px}.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px}.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:15px;background:linear-gradient(135deg,#f5b942,#e77b37);display:grid;place-items:center;color:#17120a;font-size:24px;font-weight:900}.brand h1{font-size:21px;margin:0 0 5px}.brand p{margin:0;color:var(--muted);font-size:12px}.topright{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.status{color:var(--muted);font-size:12px}.nav{display:flex;gap:8px;overflow:auto;padding:5px 0 15px;margin-bottom:8px}.nav button{white-space:nowrap;background:var(--panel);color:var(--muted);border:1px solid var(--line)}.nav button.active{background:var(--amber);color:#211800;border-color:var(--amber)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.stat,.panel,.machine{background:linear-gradient(145deg,rgba(23,35,56,.98),rgba(16,25,42,.98));border:1px solid var(--line);border-radius:var(--radius);padding:17px;box-shadow:0 10px 25px #00000012}.stat .label{font-size:13px;color:var(--muted)}.stat .num{font-size:26px;font-weight:900;margin:10px 0 3px;direction:rtl}.stat small{color:var(--muted)}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}.sectionhead h2{margin:0;font-size:19px}.machines{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.machine{padding:0;overflow:hidden}.mhead{padding:15px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.mhead h3{margin:0;font-size:16px}.pill{font-size:11px;border-radius:30px;padding:6px 9px;background:#26354d;color:var(--muted)}.pill.on{background:#5b2632;color:#ffc2ca}.pill.free{background:#174b3a;color:#b9ffe0}.mbody{padding:15px}.timer{font-size:27px;font-weight:900;direction:ltr;text-align:center;margin:8px 0 14px;letter-spacing:1px}.timer.ending{color:var(--red);animation:pulse 1s infinite}.timer.running{color:var(--amber)}@keyframes pulse{50%{opacity:.45}}.detail{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;margin:8px 0}.detail b{color:var(--text);font-weight:700}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}.actions button{flex:1;min-width:75px;padding:9px 8px;font-size:12px}.empty{text-align:center;color:var(--muted);padding:22px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:7px;margin-bottom:13px}.field label{font-size:13px;color:var(--muted)}input,select,textarea{width:100%;padding:12px;border-radius:11px;border:1px solid var(--line);background:#0c1525;color:var(--text);outline:none}input:focus,select:focus,textarea:focus{border-color:var(--amber)}.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.formgrid .wide{grid-column:1/-1}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:13px}table{width:100%;border-collapse:collapse;min-width:620px}th,td{text-align:right;padding:12px 13px;border-bottom:1px solid var(--line);font-size:13px}th{background:#0e1829;color:var(--muted);font-weight:700}tr:last-child td{border-bottom:0}.moneyplus{color:var(--green)}.moneyminus{color:var(--red)}.notice{padding:12px;border-radius:12px;background:#332b18;color:#ffe5a3;font-size:13px;line-height:1.8;margin-bottom:15px}.login{max-width:430px;margin:7vh auto;padding:26px}.login h2{margin-top:0}.muted{color:var(--muted)}.toastbox{position:fixed;bottom:20px;left:20px;z-index:100;display:grid;gap:9px;max-width:min(370px,calc(100vw - 40px))}.toast{background:#202d43;border:1px solid #465a78;padding:14px 16px;border-radius:14px;box-shadow:0 12px 30px #0008;line-height:1.6}.toast strong{display:block;color:var(--amber)}.bottomnote{color:var(--muted);font-size:11px;text-align:center;padding:22px}.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.inline input{flex:1;min-width:110px}.right{margin-right:auto}.subheading{font-size:14px;margin:0 0 14px}.checkrow{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:10px 0}.checkrow input{width:auto}.badge{display:inline-block;border-radius:8px;padding:4px 7px;background:#26354d;font-size:11px}.small{font-size:12px}.alertbox{border:1px solid #7d3944;background:#321d2a;border-radius:13px;padding:12px;margin-bottom:12px}
+@media(max-width:950px){.machines{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.wrap{padding:12px}.brand h1{font-size:18px}.stats{gap:8px}.stat{padding:13px}.stat .num{font-size:21px}.machines{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.formgrid .wide{grid-column:auto}.topright button{padding:9px 10px;font-size:12px}.timer{font-size:31px}}
+</style>
+</head>
+<body>
+<div id="loginView" class="wrap hidden">
+ <div class="panel login">
+  <div class="brand"><div class="logo">G</div><div><h1>GameDesk</h1><p>إدارة محل البلايستيشن</p></div></div>
+  <h2 style="margin-top:25px">تسجيل الدخول</h2>
+  <p class="muted small">سجّل بحساب المدير الذي أنشأته في Firebase.</p>
+  <form id="loginForm">
+   <div class="field"><label>البريد الإلكتروني</label><input id="loginEmail" type="email" required autocomplete="username" placeholder="admin@example.com"></div>
+   <div class="field"><label>كلمة المرور</label><input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••"></div>
+   <button style="width:100%" type="submit">دخول للنظام</button>
+  </form>
+  <p id="loginError" class="small" style="color:var(--red)"></p>
+  <div class="notice">الأمان: لا يوجد تسجيل حسابات عامة من داخل الموقع. أنشئ حساب المدير بنفسك من Firebase Authentication.</div>
+ </div>
+</div>
+<div id="appView" class="wrap">
+ <header class="top">
+  <div class="brand"><div class="logo">G</div><div><h1>GameDesk <span style="color:var(--amber)">|</span> إدارة البلايستيشن</h1><p id="todayLabel">لوحة إدارة المحل اليومية</p></div></div>
+  <div class="topright"><span id="connectionStatus" class="status">جاري الاتصال...</span><button class="secondary" id="enableNotify">تفعيل التنبيهات</button></div>
+ </header>
+ <nav class="nav" id="nav">
+  <button class="active" data-page="dashboard">الرئيسية والأجهزة</button><button data-page="sessions">سجل الجلسات</button><button data-page="expenses">المصروفات</button><button data-page="reports">الحسابات والتقارير</button><button data-page="settings">الإعدادات</button>
+ </nav>
+ <section id="page-dashboard">
+  <div class="stats">
+   <div class="stat"><div class="label">إيراد اليوم المحصّل</div><div class="num" id="todayIncome">0 ج.م</div><small>المبالغ المقبوضة فعليًا</small></div>
+   <div class="stat"><div class="label">مصروفات اليوم</div><div class="num" id="todayExpenses">0 ج.م</div><small>كل المصروفات المسجلة اليوم</small></div>
+   <div class="stat"><div class="label">صافي حركة اليوم</div><div class="num" id="todayNet">0 ج.م</div><small>التحصيلات ناقص المصروفات</small></div>
+   <div class="stat"><div class="label">أجهزة تعمل الآن</div><div class="num" id="activeCount">0 / 4</div><small>الجلسات النشطة</small></div>
+  </div>
+  <div id="expiredArea"></div>
+  <div class="sectionhead"><h2>حالة الأجهزة</h2><button id="quickAddBtn">＋ جلسة جديدة</button></div>
+  <div class="machines" id="machines"></div>
+  <div class="bottomnote">تأكد من السماح بالصوت والإشعارات في المتصفح. اترك الصفحة مفتوحة أثناء تشغيل الجلسات.</div>
+ </section>
+ <section id="page-sessions" class="hidden">
+  <div class="sectionhead"><h2>سجل الجلسات</h2><div class="inline"><input id="sessionSearch" placeholder="بحث باسم العميل أو الجهاز" style="max-width:260px"><input id="sessionDate" type="date" style="max-width:170px"></div></div>
+  <div class="panel"><div class="tablewrap"><table><thead><tr><th>العميل / الجهاز</th><th>البداية</th><th>المدة</th><th>المطلوب</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody id="sessionsTable"></tbody></table></div></div>
+ </section>
+ <section id="page-expenses" class="hidden">
+  <div class="grid2">
+   <div class="panel"><h2 class="subheading">إضافة مصروف جديد</h2><form id="expenseForm">
+    <div class="field"><label>نوع المصروف</label><select id="expenseCategory"><option>كهرباء</option><option>إيجار المحل</option><option>صيانة بلايستيشن</option><option>صيانة شاشة</option><option>إنترنت</option><option>مشتريات</option><option>أخرى</option></select></div>
+    <div class="field"><label>المبلغ (جنيه)</label><input id="expenseAmount" type="number" min="0.01" step="0.01" required placeholder="مثال: 250"></div>
+    <div class="field"><label>التاريخ</label><input id="expenseDate" type="date" required></div>
+    <div class="field"><label>تفاصيل (اختياري)</label><input id="expenseNote" maxlength="200" placeholder="مثال: تغيير يد تحكم"></div>
+    <button type="submit">حفظ المصروف</button>
+   </form></div>
+   <div class="panel"><h2 class="subheading">ملخص مصروفات اليوم</h2><div class="stat" style="padding:0;border:0;box-shadow:none;background:none"><div class="label">إجمالي المصروفات</div><div class="num" id="expenseTotal">0 ج.م</div></div><p class="muted small">كل عملية تُحفظ بتاريخها وتظهر في التقرير اليومي، ويمكن الرجوع للمصروفات السابقة.</p></div>
+  </div>
+  <div class="sectionhead"><h2>سجل المصروفات</h2><input id="expenseFilterDate" type="date" style="max-width:180px"></div>
+  <div class="panel"><div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>التصنيف</th><th>التفاصيل</th><th>المبلغ</th><th>إجراء</th></tr></thead><tbody id="expensesTable"></tbody></table></div></div>
+ </section>
+ <section id="page-reports" class="hidden">
+  <div class="panel">
+   <div class="sectionhead" style="margin-top:0"><h2>تقرير الحسابات</h2><div class="inline"><label class="muted small">من</label><input id="reportFrom" type="date" style="max-width:160px"><label class="muted small">إلى</label><input id="reportTo" type="date" style="max-width:160px"><button id="runReport">عرض</button><button class="secondary" id="printReport">طباعة</button></div></div>
+   <div class="stats">
+    <div class="stat"><div class="label">إجمالي التحصيلات</div><div class="num" id="rIncome">0 ج.م</div></div>
+    <div class="stat"><div class="label">إجمالي المصروفات</div><div class="num" id="rExpenses">0 ج.م</div></div>
+    <div class="stat"><div class="label">صافي الحركة النقدية</div><div class="num" id="rNet">0 ج.م</div></div>
+    <div class="stat"><div class="label">إجمالي قيمة الجلسات</div><div class="num" id="rSales">0 ج.م</div></div>
+   </div>
+   <p class="muted small">صافي الحركة = المبالغ المقبوضة خلال الفترة − المصروفات المسجلة خلال الفترة. قيمة الجلسات تشمل المبالغ المستحقة حتى لو لم تُحصّل كلها.</p>
+  </div>
+  <div class="sectionhead"><h2>تفاصيل التحصيلات</h2></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الجهاز</th><th>العميل</th><th>النوع</th><th>المبلغ</th></tr></thead><tbody id="receiptsTable"></tbody></table></div></div>
+ </section>
+ <section id="page-settings" class="hidden">
+  <div class="grid2">
+   <div class="panel"><h2 class="subheading">إعدادات التسعير</h2><form id="settingsForm">
+    <div class="field"><label>سعر الساعة (جنيه)</label><input id="hourPrice" type="number" min="0" step=".5" required></div>
+    <div class="field"><label>سعر نصف الساعة (جنيه)</label><input id="halfPrice" type="number" min="0" step=".5" required></div>
+    <div class="field"><label>سعر الدقيقة (جنيه)</label><input id="minutePrice" type="number" min="0" step=".01" required></div>
+    <p class="muted small">تُستخدم الأسعار لاقتراح السعر، ويمكن تعديله عند كل جلسة.</p><button type="submit">حفظ الأسعار</button>
+   </form></div>
+   <div class="panel"><h2 class="subheading">إعدادات وتنبيهات</h2>
+    <div class="checkrow"><input type="checkbox" id="soundEnabled" checked><label for="soundEnabled">تشغيل صوت عند انتهاء الوقت</label></div>
+    <div class="checkrow"><input type="checkbox" id="browserNotify" checked><label for="browserNotify">إشعار المتصفح عند انتهاء الوقت</label></div>
+    <div class="field"><label>اسم المحل (اختياري)</label><input id="shopName" placeholder="اسم محل البلايستيشن"></div>
+    <button id="savePrefs">حفظ الإعدادات</button>
+    <div class="notice" style="margin-top:15px">إشعارات الهاتف تعمل بعد منح إذن الإشعارات، ويفضل تثبيت الموقع كتطبيق وإبقاؤه مفتوحًا. التنبيه عند إغلاق المتصفح بالكامل ليس مضمونًا إلا بعد إعداد خدمة إشعارات خلفية إضافية.</div>
+   </div>
+  </div>
+  <div class="panel" style="margin-top:14px"><h2 class="subheading">نسخة احتياطية</h2><p class="muted small">نزّل نسخة من بياناتك للاحتفاظ بها. لا تغني عن قاعدة البيانات السحابية.</p><button class="secondary" id="exportData">تصدير نسخة JSON</button></div>
+ </section>
+</div>
+<div class="toastbox" id="toastbox"></div>
+<dialog id="sessionDialog" style="width:min(540px,calc(100% - 24px));border:1px solid var(--line);border-radius:20px;background:var(--panel);color:var(--text);padding:22px">
+ <div class="sectionhead" style="margin-top:0"><h2 id="dialogTitle">بدء جلسة</h2><button class="secondary" id="closeDialog">إغلاق</button></div>
+ <form id="sessionForm">
+  <input type="hidden" id="sessionMachine">
+  <div class="formgrid">
+   <div class="field"><label>اسم العميل (اختياري)</label><input id="customerName" maxlength="80" placeholder="اسم العميل"></div>
+   <div class="field"><label>رقم الهاتف (اختياري)</label><input id="customerPhone" inputmode="tel" maxlength="20" placeholder="01xxxxxxxxx"></div>
+   <div class="field"><label>مدة الجلسة</label><div class="inline"><input id="durationValue" type="number" min="1" value="1" required><select id="durationUnit"><option value="60">ساعة</option><option value="30">نصف ساعة</option><option value="1">دقيقة</option></select></div></div>
+   <div class="field"><label>السعر الإجمالي (جنيه)</label><input id="sessionPrice" type="number" min="0" step=".5" required></div>
+   <div class="field"><label>المدفوع الآن (جنيه)</label><input id="sessionPaid" type="number" min="0" step=".5" value="0" required></div>
+   <div class="field"><label>ملاحظات</label><input id="sessionNote" maxlength="160" placeholder="اختياري"></div>
+  </div>
+  <p id="priceHint" class="muted small">السعر المقترح حسب الإعدادات.</p>
+  <button type="submit" style="width:100%">تأكيد وبدء العداد</button>
+ </form>
+</dialog>
+<dialog id="actionDialog" style="width:min(460px,calc(100% - 24px));border:1px solid var(--line);border-radius:20px;background:var(--panel);color:var(--text);padding:22px">
+ <div class="sectionhead" style="margin-top:0"><h2 id="actionTitle">تأكيد</h2><button class="secondary" id="closeAction">إغلاق</button></div><div id="actionBody"></div>
+</dialog>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id), fmt=n=>Number(n||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' ج.م', pad=n=>String(n).padStart(2,'0');
+const dateKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const dtText=v=>v?new Date(v).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'}):'—';
+const now=()=>Date.now(), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const defaultSettings={hourPrice:30,halfPrice:15,minutePrice:.5,soundEnabled:true,browserNotify:true,shopName:'',};
+let sb=null,ready=false,settings={...defaultSettings},sessions=[],expenses=[],receipts=[],knownExpired=new Set(),audioCtx=null,channels=[];
+const machineIds=[1,2,3,4];
+
+function localDay(){return dateKey(new Date())}
+function toast(title,msg){const el=document.createElement('div');el.className='toast';el.innerHTML='<strong>'+esc(title)+'</strong>'+esc(msg);$('toastbox').appendChild(el);setTimeout(()=>el.remove(),6500)}
+function setStatus(s){$('connectionStatus').textContent=s}
+function showApp(){ $('loginView').classList.add('hidden');$('appView').classList.remove('hidden'); $('todayLabel').textContent=(settings.shopName?settings.shopName+' • ':'')+new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); }
+function showLogin(){ $('appView').classList.add('hidden');$('loginView').classList.remove('hidden');}
+
+// ---- Supabase helpers (map snake_case DB <-> camelCase app) ----
+function mapSession(r){return r?{id:r.id,machine:r.machine,customerName:r.customer_name||'',customerPhone:r.customer_phone||'',durationMin:r.duration_min,price:Number(r.price),paid:Number(r.paid),note:r.note||'',startAt:r.start_at,endAt:r.end_at,status:r.status,finishedAt:r.finished_at||null,createdAt:r.created_at}:null}
+function mapExpense(r){return r?{id:r.id,category:r.category,amount:Number(r.amount),date:r.date,note:r.note||'',createdAt:r.created_at}:null}
+function mapReceipt(r){return r?{id:r.id,sessionId:r.session_id,machine:r.machine,customerName:r.customer_name||'',amount:Number(r.amount),kind:r.kind||'',createdAt:r.created_at,date:r.date}:null}
+function mapSettings(r){return r?{hourPrice:Number(r.hour_price),halfPrice:Number(r.half_price),minutePrice:Number(r.minute_price),soundEnabled:!!r.sound_enabled,browserNotify:!!r.browser_notify,shopName:r.shop_name||''}:defaultSettings}
+
+async function addReceipt(data){
+  const item={session_id:data.sessionId||null,machine:data.machine||null,customer_name:data.customerName||'',amount:data.amount,kind:data.kind||'',created_at:data.createdAt||now(),date:dateKey(new Date(data.createdAt||now()))};
+  const {data:row,error}=await sb.from('gamedesk_receipts').insert(item).select().single();
+  if(error)throw error;
+  return mapReceipt(row);
+}
+
+async function loadAll(){
+  setStatus('تحميل البيانات...');
+  const [ss,ee,rr,st]=await Promise.all([
+    sb.from('gamedesk_sessions').select('*').order('created_at',{ascending:false}),
+    sb.from('gamedesk_expenses').select('*').order('created_at',{ascending:false}),
+    sb.from('gamedesk_receipts').select('*').order('created_at',{ascending:false}),
+    sb.from('gamedesk_settings').select('*').eq('id','main').maybeSingle()
+  ]);
+  if(ss.error)throw ss.error; if(ee.error)throw ee.error; if(rr.error)throw rr.error;
+  sessions=(ss.data||[]).map(mapSession);
+  expenses=(ee.data||[]).map(mapExpense);
+  receipts=(rr.data||[]).map(mapReceipt);
+  if(st.data) settings={...defaultSettings,...mapSettings(st.data)};
+  else {
+    await sb.from('gamedesk_settings').upsert({id:'main',hour_price:30,half_price:15,minute_price:0.5,sound_enabled:true,browser_notify:true,shop_name:''});
+  }
+  ready=true; renderAll(); setStatus('متصل • البيانات محفوظة على Supabase');
+}
+
+function subscribeData(){
+  channels.forEach(c=>{try{sb.removeChannel(c)}catch(e){}});
+  channels=[];
+  const sub=(table,cb)=>{
+    const ch=sb.channel('gd-'+table).on('postgres_changes',{event:'*',schema:'public',table:table},async()=>{
+      const {data,error}=await sb.from(table).select('*').order('created_at',{ascending:false});
+      if(!error)cb(data||[]);
+    }).subscribe();
+    channels.push(ch);
+  };
+  sub('gamedesk_sessions',rows=>{sessions=rows.map(mapSession);renderAll()});
+  sub('gamedesk_expenses',rows=>{expenses=rows.map(mapExpense);renderAll()});
+  sub('gamedesk_receipts',rows=>{receipts=rows.map(mapReceipt);renderAll()});
+  const sch=sb.channel('gd-settings').on('postgres_changes',{event:'*',schema:'public',table:'gamedesk_settings'},async()=>{
+    const {data}=await sb.from('gamedesk_settings').select('*').eq('id','main').maybeSingle();
+    if(data){settings={...defaultSettings,...mapSettings(data)};applySettings();renderAll()}
+  }).subscribe();
+  channels.push(sch);
+}
+
+function activeFor(id){return sessions.find(s=>s.machine===id&&s.status==='active')}
+function clock(sec){const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return (h?pad(h)+':':'')+pad(m)+':'+pad(s)}
+function beep(){if(!settings.soundEnabled)return;try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=880;g.gain.value=.08;o.start();setTimeout(()=>o.stop(),220)}catch(e){}}
+function notify(t,b){if(!settings.browserNotify||!('Notification'in window))return;if(Notification.permission==='granted')new Notification(t,{body:b,icon:'icon.svg'});else if(Notification.permission!=='denied')Notification.requestPermission()}
+
+function renderDashboard(){
+  const grid=$('machinesGrid');if(!grid)return;
+  grid.innerHTML=machineIds.map(id=>{
+    const s=activeFor(id);
+    if(!s)return `<div class="machine free"><div class="mhead"><span class="name">جهاز ${id}</span><span class="pill free">متاح</span></div><div class="mbody"><div class="timer">00:00</div><div class="detail"><span>لا توجد جلسة</span></div><div class="actions"><button data-start="${id}">بدء جلسة</button></div></div></div>`;
+    const left=Math.max(0,Math.ceil((s.endAt-now())/1000));
+    const remain=Math.max(0,Number(s.price)-Number(s.paid));
+    return `<div class="machine busy"><div class="mhead"><span class="name">جهاز ${id}</span><span class="pill busy">مشغول</span></div><div class="mbody">
+      <div class="timer ${left===0?'ending':'running'}" data-timer="${s.id}">${clock(left)}</div>
+      <div class="detail"><span>${esc(s.customerName||'عميل')}</span><b>${fmt(s.price)}</b></div>
+      <div class="detail"><span>مدفوع / متبقي</span><b>${fmt(s.paid)} / ${fmt(remain)}</b></div>
+      <div class="detail"><span>ينتهي</span><b>${dtText(s.endAt)}</b></div>
+      <div class="actions">
+        <button class="secondary" data-extend="${s.id}">تمديد</button>
+        <button class="secondary" data-collect="${s.id}">تحصيل</button>
+        <button class="danger" data-finish="${s.id}">إنهاء</button>
+      </div></div></div>`;
+  }).join('');
+}
+
+function renderSessions(){
+  const q=($('sessionSearch').value||'').trim().toLowerCase(), day=$('sessionDate').value;
+  let rows=sessions.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  if(day)rows=rows.filter(s=>dateKey(new Date(s.startAt))===day);
+  if(q)rows=rows.filter(s=>(s.customerName||'').toLowerCase().includes(q)||String(s.machine).includes(q)||(s.customerPhone||'').includes(q));
+  $('sessionsTable').innerHTML=rows.map(s=>{
+    const remain=Math.max(0,Number(s.price)-Number(s.paid));
+    return `<tr><td>${esc(s.machine)}</td><td>${esc(s.customerName||'—')}</td><td>${esc(s.customerPhone||'—')}</td><td>${dtText(s.startAt)}</td><td>${dtText(s.endAt)}</td><td>${fmt(s.price)}</td><td>${fmt(s.paid)}</td><td>${fmt(remain)}</td><td>${s.status==='active'?'نشطة':'منتهية'}</td></tr>`;
+  }).join('')||'<tr><td colspan="9" class="empty">لا توجد جلسات</td></tr>';
+}
+
+function renderExpenses(){
+  const day=$('expenseFilterDate').value;
+  let rows=expenses.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  if(day)rows=rows.filter(e=>e.date===day);
+  $('expensesTable').innerHTML=rows.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.category)}</td><td>${esc(e.note||'—')}</td><td class="moneyminus">${fmt(e.amount)}</td><td><button class="danger" onclick="window.deleteExpense('${e.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">لا توجد مصروفات في هذا التاريخ</td></tr>';
+}
+
+function renderReceipts(){
+  const rows=receipts.slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0,80);
+  $('receiptsTable').innerHTML=rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${dtText(r.createdAt)}</td><td>${esc(r.kind)}</td><td>${esc(r.customerName||'—')}</td><td>جهاز ${esc(r.machine||'—')}</td><td class="moneyplus">${fmt(r.amount)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد تحصيلات</td></tr>';
+}
+
+function applySettings(){
+  $('hourPrice').value=settings.hourPrice;
+  $('halfPrice').value=settings.halfPrice;
+  $('minutePrice').value=settings.minutePrice;
+  $('soundEnabled').checked=!!settings.soundEnabled;
+  $('browserNotify').checked=!!settings.browserNotify;
+  $('shopName').value=settings.shopName||'';
+  showApp();
+}
+
+function renderAll(){if(!ready)return;renderDashboard();renderSessions();renderExpenses();renderReceipts();applySettings()}
+
+function openStart(id){
+  $('sessionMachine').value=id;
+  $('dialogTitle').textContent='بدء جلسة — جهاز '+id;
+  $('customerName').value='';$('customerPhone').value='';$('durationValue').value=1;$('durationUnit').value='60';
+  $('sessionPrice').value=settings.hourPrice;$('sessionPaid').value=settings.hourPrice;$('sessionNote').value='';
+  $('priceHint').textContent='السعر المقترح: ساعة '+fmt(settings.hourPrice)+' • نصف ساعة '+fmt(settings.halfPrice)+' • دقيقة '+fmt(settings.minutePrice);
+  $('sessionDialog').showModal();
+}
+
+function suggestPrice(){
+  const u=Number($('durationUnit').value),v=Number($('durationValue').value)||1;
+  let p=0;
+  if(u===60)p=v*settings.hourPrice;
+  else if(u===30)p=v*settings.halfPrice;
+  else p=v*settings.minutePrice;
+  $('sessionPrice').value=Math.round(p*100)/100;
+  if(Number($('sessionPaid').value)===0||Number($('sessionPaid').value)===Number($('sessionPrice').value)) $('sessionPaid').value=$('sessionPrice').value;
+}
+
+async function finishSession(id){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  const left=Math.max(0,Number(s.price)-Number(s.paid));
+  $('actionTitle').textContent='إنهاء الجلسة — جهاز '+s.machine;
+  $('actionBody').innerHTML=`<p class="muted">المتبقي: <b>${fmt(left)}</b></p>
+    <div class="actions" style="margin-top:14px">
+      <button id="finCollect">تحصيل المتبقي وإنهاء</button>
+      <button class="secondary" id="finOnly">إنهاء بدون تحصيل</button>
+      <button class="danger" id="finCancel">إلغاء</button>
+    </div>`;
+  $('actionDialog').showModal();
+  $('finCancel').onclick=()=>$('actionDialog').close();
+  $('finOnly').onclick=async()=>{try{await sb.from('gamedesk_sessions').update({status:'finished',finished_at:now()}).eq('id',id);$('actionDialog').close();toast('انتهت الجلسة','بدون تحصيل إضافي.')}catch(e){toast('خطأ',e.message)}};
+  $('finCollect').onclick=async()=>{try{
+    if(left>0){await addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount:left,kind:'تحصيل عند الإنهاء'});await sb.from('gamedesk_sessions').update({paid:Number(s.paid)+left,status:'finished',finished_at:now()}).eq('id',id)}
+    else await sb.from('gamedesk_sessions').update({status:'finished',finished_at:now()}).eq('id',id);
+    $('actionDialog').close();toast('انتهت الجلسة','تم تسجيل التحصيل.')
+  }catch(e){toast('خطأ',e.message)}};
+}
+
+async function collectSession(id){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  const left=Math.max(0,Number(s.price)-Number(s.paid));
+  $('actionTitle').textContent='تحصيل — جهاز '+s.machine;
+  $('actionBody').innerHTML=`<p class="muted">المتبقي حالياً: <b>${fmt(left)}</b></p>
+    <div class="field"><label>المبلغ المحصّل</label><input id="collectAmount" type="number" min="0" step=".5" value="${left}"></div>
+    <div class="actions"><button id="doCollect">تأكيد التحصيل</button><button class="secondary" id="cancelCollect">إلغاء</button></div>`;
+  $('actionDialog').showModal();
+  $('cancelCollect').onclick=()=>$('actionDialog').close();
+  $('doCollect').onclick=async()=>{const amount=Number($('collectAmount').value);if(!(amount>0))return;try{
+    await addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount,kind:'تحصيل جزئي'});
+    await sb.from('gamedesk_sessions').update({paid:Number(s.paid)+amount}).eq('id',id);
+    $('actionDialog').close();toast('تم التحصيل',fmt(amount));
+  }catch(e){toast('خطأ',e.message)}};
+}
+
+async function extendSession(id){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  $('actionTitle').textContent='تمديد — جهاز '+s.machine;
+  $('actionBody').innerHTML=`
+    <div class="formgrid">
+      <div class="field"><label>مدة التمديد</label><div class="inline"><input id="extValue" type="number" min="1" value="1"><select id="extUnit"><option value="60">ساعة</option><option value="30">نصف ساعة</option><option value="1">دقيقة</option></select></div></div>
+      <div class="field"><label>سعر التمديد</label><input id="extPrice" type="number" min="0" step=".5" value="${settings.hourPrice}"></div>
+      <div class="field"><label>المدفوع الآن</label><input id="extPaid" type="number" min="0" step=".5" value="${settings.hourPrice}"></div>
+    </div>
+    <div class="actions"><button id="doExtend">تأكيد التمديد</button><button class="secondary" id="cancelExt">إلغاء</button></div>`;
+  $('actionDialog').showModal();
+  const suggest=()=>{const u=Number($('extUnit').value),v=Number($('extValue').value)||1;let p=u===60?v*settings.hourPrice:u===30?v*settings.halfPrice:v*settings.minutePrice;$('extPrice').value=Math.round(p*100)/100;$('extPaid').value=$('extPrice').value};
+  $('extUnit').onchange=suggest;$('extValue').oninput=suggest;suggest();
+  $('cancelExt').onclick=()=>$('actionDialog').close();
+  $('doExtend').onclick=async()=>{
+    const mins=Number($('extValue').value)*Number($('extUnit').value),price=Number($('extPrice').value),paid=Number($('extPaid').value);
+    if(mins<=0||price<0||paid<0||paid>price){toast('راجع البيانات','');return}
+    try{
+      const endAt=Math.max(s.endAt,now())+mins*60000;
+      if(paid>0)await addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount:paid,kind:'دفعة تمديد'});
+      await sb.from('gamedesk_sessions').update({end_at:endAt,duration_min:Number(s.durationMin)+mins,price:Number(s.price)+price,paid:Number(s.paid)+paid}).eq('id',id);
+      $('actionDialog').close();toast('تم التمديد','أضيف '+mins+' دقيقة.');
+    }catch(e){toast('خطأ',e.message)}
+  };
+}
+
+window.deleteExpense=async id=>{if(!confirm('تأكيد حذف المصروف؟ سيؤثر ذلك على التقارير.'))return;try{await sb.from('gamedesk_expenses').delete().eq('id',id);toast('حُذف المصروف','')}catch(e){toast('تعذر الحذف',e.message)}};
+
+function runReport(){
+  const from=$('reportFrom').value,to=$('reportTo').value;
+  const inRange=(d)=>{if(!from&&!to)return true;if(from&&d<from)return false;if(to&&d>to)return false;return true};
+  const rec=receipts.filter(r=>inRange(r.date));
+  const exp=expenses.filter(e=>inRange(e.date));
+  const sess=sessions.filter(s=>inRange(dateKey(new Date(s.startAt))));
+  const totalIn=rec.reduce((a,r)=>a+Number(r.amount),0);
+  const totalOut=exp.reduce((a,e)=>a+Number(e.amount),0);
+  const totalSessionValue=sess.reduce((a,s)=>a+Number(s.price),0);
+  $('reportSummary').innerHTML=`
+    <div class="grid2">
+      <div class="card"><div class="muted">إجمالي التحصيلات</div><div class="big moneyplus">${fmt(totalIn)}</div></div>
+      <div class="card"><div class="muted">إجمالي المصروفات</div><div class="big moneyminus">${fmt(totalOut)}</div></div>
+      <div class="card"><div class="muted">صافي الحركة النقدية</div><div class="big">${fmt(totalIn-totalOut)}</div></div>
+      <div class="card"><div class="muted">قيمة الجلسات</div><div class="big">${fmt(totalSessionValue)}</div></div>
+    </div>
+    <p class="muted" style="margin-top:12px">عدد الجلسات: ${sess.length} • عدد التحصيلات: ${rec.length} • عدد المصروفات: ${exp.length}</p>`;
+}
+
+// Events
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.dataset.start)openStart(Number(t.dataset.start));
+  if(t.dataset.finish)finishSession(t.dataset.finish);
+  if(t.dataset.collect)collectSession(t.dataset.collect);
+  if(t.dataset.extend)extendSession(t.dataset.extend);
+});
+$('closeDialog').onclick=()=>$('sessionDialog').close();
+$('closeAction').onclick=()=>$('actionDialog').close();
+$('durationUnit').onchange=suggestPrice;$('durationValue').oninput=suggestPrice;
+$('sessionForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const id=Number($('sessionMachine').value),durationMin=Math.max(1,Number($('durationValue').value)*Number($('durationUnit').value)),price=Number($('sessionPrice').value),paid=Number($('sessionPaid').value);
+  if(activeFor(id)){toast('الجهاز مشغول','تم بدء جلسة أخرى على هذا الجهاز.');return}
+  if(price<0||paid<0||paid>price){toast('راجع المبالغ','المدفوع يجب ألا يتجاوز السعر الإجمالي.');return}
+  const startAt=now();
+  const row={machine:id,customer_name:$('customerName').value.trim(),customer_phone:$('customerPhone').value.trim(),duration_min:durationMin,price,paid,note:$('sessionNote').value.trim(),start_at:startAt,end_at:startAt+durationMin*60000,status:'active',created_at:startAt};
+  try{
+    const {data:ref,error}=await sb.from('gamedesk_sessions').insert(row).select().single();
+    if(error)throw error;
+    if(paid>0)await addReceipt({sessionId:ref.id,machine:id,customerName:row.customer_name,amount:paid,kind:'دفعة بداية',createdAt:startAt});
+    $('sessionDialog').close();toast('بدأت الجلسة','العداد يعمل الآن على جهاز '+id);
+  }catch(err){toast('خطأ في الحفظ','تعذر حفظ الجلسة: '+err.message)}
+});
+
+$('expenseForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const amount=Number($('expenseAmount').value);if(!Number.isFinite(amount)||amount<=0)return;
+  try{
+    await sb.from('gamedesk_expenses').insert({category:$('expenseCategory').value,amount,date:$('expenseDate').value,note:$('expenseNote').value.trim(),created_at:now()});
+    $('expenseAmount').value='';$('expenseNote').value='';
+    toast('تم حفظ المصروف','أضيف إلى حسابات اليوم.');
+  }catch(err){toast('تعذر الحفظ',err.message)}
+});
+
+$('savePrices').onclick=async()=>{
+  const next={hour_price:Number($('hourPrice').value),half_price:Number($('halfPrice').value),minute_price:Number($('minutePrice').value)};
+  try{await sb.from('gamedesk_settings').update(next).eq('id','main');toast('حُفظت الأسعار','')}catch(e){toast('تعذر الحفظ',e.message)}
+};
+$('savePrefs').onclick=async()=>{
+  try{await sb.from('gamedesk_settings').update({sound_enabled:$('soundEnabled').checked,browser_notify:$('browserNotify').checked,shop_name:$('shopName').value.trim()}).eq('id','main');toast('حُفظت التفضيلات','')}catch(e){toast('تعذر الحفظ',e.message)}
+};
+
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',e=>{const btn=e.target.closest('button[data-page]');if(!btn)return;document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('[id^="page-"]').forEach(x=>x.classList.add('hidden'));$('page-'+btn.dataset.page).classList.remove('hidden');if(btn.dataset.page==='reports')runReport()}));
+$('sessionSearch').addEventListener('input',renderSessions);$('sessionDate').addEventListener('change',renderSessions);$('expenseFilterDate').addEventListener('change',renderExpenses);$('runReport').onclick=runReport;$('printReport').onclick=()=>window.print();
+$('exportData').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),sessions,expenses,receipts,settings},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gamedesk-backup-'+localDay()+'.json';a.click();URL.revokeObjectURL(a.href)};
+
+setInterval(()=>{if(!ready)return;const active=sessions.filter(s=>s.status==='active');let changed=false;active.forEach(s=>{const el=document.querySelector(`[data-timer="${s.id}"]`),left=Math.max(0,Math.ceil((s.endAt-now())/1000));if(el){el.textContent=clock(left);el.classList.toggle('ending',left===0)}if(left===0&&!knownExpired.has(s.id)){knownExpired.add(s.id);beep();notify('انتهى وقت جهاز '+s.machine,'انتهت جلسة '+(s.customerName||'العميل')+'. يمكنك إنهاء الجلسة أو تمديدها.');changed=true}});if(changed)renderDashboard()},1000);
+
+async function start(){
+  if(typeof SUPABASE_URL==='undefined'||!SUPABASE_URL||SUPABASE_URL.includes('YOUR_')){setStatus('Supabase غير مضبوط');return}
+  try{
+    sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    showApp();
+    await loadAll();
+    subscribeData();
+    $('expenseDate').value=localDay();$('expenseFilterDate').value=localDay();$('sessionDate').value=localDay();$('reportFrom').value=localDay();$('reportTo').value=localDay();
+  }catch(e){setStatus('خطأ في الاتصال');toast('تعذر الاتصال بـ Supabase',e.message);console.error(e)}
+}
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+start();
+})();
+</script>
+</body></html>
