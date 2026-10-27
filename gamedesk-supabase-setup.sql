@@ -1,10 +1,4 @@
--- ============================================
--- GameDesk - Supabase Schema
--- Run this in Supabase → SQL Editor → New query
--- (same project as Marseille Academy)
--- ============================================
-
--- Settings (single row)
+-- GameDesk tables (run once in Supabase SQL Editor)
 CREATE TABLE IF NOT EXISTS gamedesk_settings (
   id TEXT PRIMARY KEY DEFAULT 'main',
   hour_price NUMERIC DEFAULT 30,
@@ -13,12 +7,12 @@ CREATE TABLE IF NOT EXISTS gamedesk_settings (
   sound_enabled BOOLEAN DEFAULT true,
   browser_notify BOOLEAN DEFAULT true,
   shop_name TEXT DEFAULT '',
+  alert_phone TEXT DEFAULT '',
+  alert_repeat INT DEFAULT 3,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 INSERT INTO gamedesk_settings (id) VALUES ('main') ON CONFLICT DO NOTHING;
 
--- Sessions
 CREATE TABLE IF NOT EXISTS gamedesk_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   machine INT NOT NULL,
@@ -36,7 +30,6 @@ CREATE TABLE IF NOT EXISTS gamedesk_sessions (
   inserted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Expenses
 CREATE TABLE IF NOT EXISTS gamedesk_expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category TEXT NOT NULL,
@@ -47,7 +40,6 @@ CREATE TABLE IF NOT EXISTS gamedesk_expenses (
   inserted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Receipts
 CREATE TABLE IF NOT EXISTS gamedesk_receipts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID,
@@ -60,20 +52,25 @@ CREATE TABLE IF NOT EXISTS gamedesk_receipts (
   inserted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable Row Level Security
 ALTER TABLE gamedesk_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gamedesk_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gamedesk_expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gamedesk_receipts ENABLE ROW LEVEL SECURITY;
 
--- Public access policies (same style as Marseille Academy - open for simplicity)
-CREATE POLICY "Public all gamedesk_settings" ON gamedesk_settings FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public all gamedesk_sessions" ON gamedesk_sessions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public all gamedesk_expenses" ON gamedesk_expenses FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public all gamedesk_receipts" ON gamedesk_receipts FOR ALL USING (true) WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "all settings" ON gamedesk_settings FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "all sessions" ON gamedesk_sessions FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "all expenses" ON gamedesk_expenses FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "all receipts" ON gamedesk_receipts FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_gamedesk_sessions_status ON gamedesk_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_gamedesk_sessions_machine ON gamedesk_sessions(machine);
-CREATE INDEX IF NOT EXISTS idx_gamedesk_expenses_date ON gamedesk_expenses(date);
-CREATE INDEX IF NOT EXISTS idx_gamedesk_receipts_date ON gamedesk_receipts(date);
+CREATE INDEX IF NOT EXISTS idx_gd_sessions_status ON gamedesk_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_gd_sessions_machine ON gamedesk_sessions(machine);
+CREATE INDEX IF NOT EXISTS idx_gd_expenses_date ON gamedesk_expenses(date);
+CREATE INDEX IF NOT EXISTS idx_gd_receipts_date ON gamedesk_receipts(date);

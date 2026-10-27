@@ -30,7 +30,7 @@
 <div id="appView" class="wrap">
  <header class="top">
   <div class="brand"><div class="logo">G</div><div><h1>GameDesk <span style="color:var(--amber)">|</span> إدارة البلايستيشن</h1><p id="todayLabel">لوحة إدارة المحل اليومية</p></div></div>
-  <div class="topright"><span id="connectionStatus" class="status">جاري الاتصال...</span><button class="secondary" id="enableNotify">تفعيل التنبيهات</button></div>
+  <div class="topright"><span id="connectionStatus" class="status">جاري التحميل...</span><button class="secondary" id="enableNotify">تفعيل التنبيهات</button></div>
  </header>
  <nav class="nav" id="nav">
   <button class="active" data-page="dashboard">الرئيسية والأجهزة</button><button data-page="sessions">سجل الجلسات</button><button data-page="expenses">المصروفات</button><button data-page="reports">الحسابات والتقارير</button><button data-page="settings">الإعدادات</button>
@@ -94,7 +94,7 @@
     <div class="notice" style="margin-top:15px">إشعارات الهاتف تعمل بعد منح إذن الإشعارات، ويفضل تثبيت الموقع كتطبيق وإبقاؤه مفتوحًا. التنبيه عند إغلاق المتصفح بالكامل ليس مضمونًا إلا بعد إعداد خدمة إشعارات خلفية إضافية.</div>
    </div>
   </div>
-  <div class="panel" style="margin-top:14px"><h2 class="subheading">نسخة احتياطية</h2><p class="muted small">نزّل نسخة من بياناتك للاحتفاظ بها. لا تغني عن قاعدة البيانات السحابية.</p><button class="secondary" id="exportData">تصدير نسخة JSON</button></div>
+  <div class="panel" style="margin-top:14px"><h2 class="subheading">نسخة احتياطية</h2><p class="muted small">البيانات تتزامن على Supabase بين الأجهزة. صدّر نسخة احتياطية احتياطاً.</p><button class="secondary" id="exportData">تصدير نسخة JSON</button> <button class="secondary" id="importData">استيراد نسخة</button></div>
  </section>
 </div>
 <div class="toastbox" id="toastbox"></div>
@@ -118,238 +118,322 @@
  <div class="sectionhead" style="margin-top:0"><h2 id="actionTitle">تأكيد</h2><button class="secondary" id="closeAction">إغلاق</button></div><div id="actionBody"></div>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// fallback لو ملف الإعدادات مش موجود
+window.SUPABASE_URL = window.SUPABASE_URL || '';
+window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
+</script>
 <script src="supabase-config.js"></script>
+<script>
+// ثبّت القيم من const لو اتعرّفت
+try{ if(typeof SUPABASE_URL!=='undefined') window.SUPABASE_URL=SUPABASE_URL; }catch(e){}
+try{ if(typeof SUPABASE_ANON_KEY!=='undefined') window.SUPABASE_ANON_KEY=SUPABASE_ANON_KEY; }catch(e){}
+</script>
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id), fmt=n=>Number(n||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' ج.م', pad=n=>String(n).padStart(2,'0');
 const dateKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const dtText=v=>v?new Date(v).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'}):'—';
 const now=()=>Date.now(), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const defaultSettings={hourPrice:30,halfPrice:15,minutePrice:.5,soundEnabled:true,browserNotify:true,shopName:'',};
-let sb=null,ready=false,settings={...defaultSettings},sessions=[],expenses=[],receipts=[],knownExpired=new Set(),audioCtx=null,channels=[];
+const STORAGE_KEY='gamedesk_cache_v2';
+const defaultSettings={hourPrice:30,halfPrice:15,minutePrice:.5,soundEnabled:true,browserNotify:true,shopName:'',alertPhone:'',alertRepeat:3};
+let sb=null,ready=false,online=false,settings={...defaultSettings},sessions=[],expenses=[],receipts=[],knownExpired=new Set(),audioCtx=null,alertTimers={},channels=[],syncing=false,pendingOps=[];
 const machineIds=[1,2,3,4];
 
 function localDay(){return dateKey(new Date())}
-function toast(title,msg){const el=document.createElement('div');el.className='toast';el.innerHTML='<strong>'+esc(title)+'</strong>'+esc(msg);$('toastbox').appendChild(el);setTimeout(()=>el.remove(),6500)}
-function setStatus(s){$('connectionStatus').textContent=s}
-function showApp(){ $('loginView').classList.add('hidden');$('appView').classList.remove('hidden'); $('todayLabel').textContent=(settings.shopName?settings.shopName+' • ':'')+new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); }
-function showLogin(){ $('appView').classList.add('hidden');$('loginView').classList.remove('hidden');}
+function toast(title,msg){const el=document.createElement('div');el.className='toast';el.innerHTML='<strong>'+esc(title)+'</strong>'+esc(msg);$('toastbox').appendChild(el);setTimeout(()=>el.remove(),5500)}
+function setStatus(s){const el=$('connectionStatus');if(el)el.textContent=s}
+function showApp(){const lv=$('loginView'),av=$('appView');if(lv)lv.classList.add('hidden');if(av)av.classList.remove('hidden');const t=$('todayLabel');if(t)t.textContent=(settings.shopName?settings.shopName+' • ':'')+new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+function uid(){return crypto.randomUUID?crypto.randomUUID():('id_'+Math.random().toString(36).slice(2)+Date.now().toString(36))}
 
-// ---- Supabase helpers (map snake_case DB <-> camelCase app) ----
+// ---- local cache (instant) ----
+function saveLocal(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({settings,sessions,expenses,receipts,pendingOps,savedAt:new Date().toISOString()}))}catch(e){console.warn(e)}
+}
+function loadLocal(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(d.settings)settings={...defaultSettings,...d.settings};
+    sessions=Array.isArray(d.sessions)?d.sessions:[];
+    expenses=Array.isArray(d.expenses)?d.expenses:[];
+    receipts=Array.isArray(d.receipts)?d.receipts:[];
+    pendingOps=Array.isArray(d.pendingOps)?d.pendingOps:[];
+    return true;
+  }catch(e){return false}
+}
+
+// ---- Supabase mapping ----
 function mapSession(r){return r?{id:r.id,machine:r.machine,customerName:r.customer_name||'',customerPhone:r.customer_phone||'',durationMin:r.duration_min,price:Number(r.price),paid:Number(r.paid),note:r.note||'',startAt:r.start_at,endAt:r.end_at,status:r.status,finishedAt:r.finished_at||null,createdAt:r.created_at}:null}
 function mapExpense(r){return r?{id:r.id,category:r.category,amount:Number(r.amount),date:r.date,note:r.note||'',createdAt:r.created_at}:null}
 function mapReceipt(r){return r?{id:r.id,sessionId:r.session_id,machine:r.machine,customerName:r.customer_name||'',amount:Number(r.amount),kind:r.kind||'',createdAt:r.created_at,date:r.date}:null}
-function mapSettings(r){return r?{hourPrice:Number(r.hour_price),halfPrice:Number(r.half_price),minutePrice:Number(r.minute_price),soundEnabled:!!r.sound_enabled,browserNotify:!!r.browser_notify,shopName:r.shop_name||''}:defaultSettings}
+function mapSettings(r){return r?{hourPrice:Number(r.hour_price),halfPrice:Number(r.half_price),minutePrice:Number(r.minute_price),soundEnabled:!!r.sound_enabled,browserNotify:!!r.browser_notify,shopName:r.shop_name||'',alertPhone:r.alert_phone||'',alertRepeat:Number(r.alert_repeat)||3}:defaultSettings}
 
-async function addReceipt(data){
-  const item={session_id:data.sessionId||null,machine:data.machine||null,customer_name:data.customerName||'',amount:data.amount,kind:data.kind||'',created_at:data.createdAt||now(),date:dateKey(new Date(data.createdAt||now()))};
-  const {data:row,error}=await sb.from('gamedesk_receipts').insert(item).select().single();
-  if(error)throw error;
-  return mapReceipt(row);
-}
-
-async function loadAll(){
-  setStatus('تحميل البيانات...');
+async function pullRemote(){
+  if(!sb)return;
   const [ss,ee,rr,st]=await Promise.all([
-    sb.from('gamedesk_sessions').select('*').order('created_at',{ascending:false}),
-    sb.from('gamedesk_expenses').select('*').order('created_at',{ascending:false}),
-    sb.from('gamedesk_receipts').select('*').order('created_at',{ascending:false}),
+    sb.from('gamedesk_sessions').select('*').order('created_at',{ascending:false}).limit(500),
+    sb.from('gamedesk_expenses').select('*').order('created_at',{ascending:false}).limit(500),
+    sb.from('gamedesk_receipts').select('*').order('created_at',{ascending:false}).limit(500),
     sb.from('gamedesk_settings').select('*').eq('id','main').maybeSingle()
   ]);
-  if(ss.error)throw ss.error; if(ee.error)throw ee.error; if(rr.error)throw rr.error;
+  if(ss.error)throw ss.error;
+  if(ee.error)throw ee.error;
+  if(rr.error)throw rr.error;
   sessions=(ss.data||[]).map(mapSession);
   expenses=(ee.data||[]).map(mapExpense);
   receipts=(rr.data||[]).map(mapReceipt);
-  if(st.data) settings={...defaultSettings,...mapSettings(st.data)};
+  if(st.data)settings={...defaultSettings,...mapSettings(st.data)};
   else {
-    await sb.from('gamedesk_settings').upsert({id:'main',hour_price:30,half_price:15,minute_price:0.5,sound_enabled:true,browser_notify:true,shop_name:''});
+    await sb.from('gamedesk_settings').upsert({id:'main',hour_price:30,half_price:15,minute_price:0.5,sound_enabled:true,browser_notify:true,shop_name:'',alert_phone:'',alert_repeat:3});
   }
-  ready=true; renderAll(); setStatus('متصل • البيانات محفوظة على Supabase');
+  saveLocal();
 }
 
 function subscribeData(){
+  if(!sb)return;
   channels.forEach(c=>{try{sb.removeChannel(c)}catch(e){}});
   channels=[];
-  const sub=(table,cb)=>{
-    const ch=sb.channel('gd-'+table).on('postgres_changes',{event:'*',schema:'public',table:table},async()=>{
-      const {data,error}=await sb.from(table).select('*').order('created_at',{ascending:false});
-      if(!error)cb(data||[]);
-    }).subscribe();
-    channels.push(ch);
+  const reload=async(table)=>{
+    try{
+      if(table==='gamedesk_sessions'){const {data}=await sb.from(table).select('*').order('created_at',{ascending:false}).limit(500);if(data){sessions=data.map(mapSession);saveLocal();renderAll()}}
+      if(table==='gamedesk_expenses'){const {data}=await sb.from(table).select('*').order('created_at',{ascending:false}).limit(500);if(data){expenses=data.map(mapExpense);saveLocal();renderAll()}}
+      if(table==='gamedesk_receipts'){const {data}=await sb.from(table).select('*').order('created_at',{ascending:false}).limit(500);if(data){receipts=data.map(mapReceipt);saveLocal();renderAll()}}
+      if(table==='gamedesk_settings'){const {data}=await sb.from(table).select('*').eq('id','main').maybeSingle();if(data){settings={...defaultSettings,...mapSettings(data)};saveLocal();applySettings();renderAll()}}
+    }catch(e){console.warn(e)}
   };
-  sub('gamedesk_sessions',rows=>{sessions=rows.map(mapSession);renderAll()});
-  sub('gamedesk_expenses',rows=>{expenses=rows.map(mapExpense);renderAll()});
-  sub('gamedesk_receipts',rows=>{receipts=rows.map(mapReceipt);renderAll()});
-  const sch=sb.channel('gd-settings').on('postgres_changes',{event:'*',schema:'public',table:'gamedesk_settings'},async()=>{
-    const {data}=await sb.from('gamedesk_settings').select('*').eq('id','main').maybeSingle();
-    if(data){settings={...defaultSettings,...mapSettings(data)};applySettings();renderAll()}
-  }).subscribe();
-  channels.push(sch);
+  ['gamedesk_sessions','gamedesk_expenses','gamedesk_receipts','gamedesk_settings'].forEach(table=>{
+    const ch=sb.channel('gd-'+table).on('postgres_changes',{event:'*',schema:'public',table},()=>reload(table)).subscribe();
+    channels.push(ch);
+  });
+}
+
+// ---- writes: local first + remote ----
+async function remoteAddSession(s){
+  const row={id:s.id,machine:s.machine,customer_name:s.customerName||'',customer_phone:s.customerPhone||'',duration_min:s.durationMin,price:s.price,paid:s.paid,note:s.note||'',start_at:s.startAt,end_at:s.endAt,status:s.status,finished_at:s.finishedAt||null,created_at:s.createdAt};
+  const {error}=await sb.from('gamedesk_sessions').upsert(row);if(error)throw error;
+}
+async function remoteUpdateSession(id,patch){
+  const row={};
+  if('status'in patch)row.status=patch.status;
+  if('paid'in patch)row.paid=patch.paid;
+  if('endAt'in patch)row.end_at=patch.endAt;
+  if('durationMin'in patch)row.duration_min=patch.durationMin;
+  if('price'in patch)row.price=patch.price;
+  if('finishedAt'in patch)row.finished_at=patch.finishedAt;
+  const {error}=await sb.from('gamedesk_sessions').update(row).eq('id',id);if(error)throw error;
+}
+async function remoteAddReceipt(item){
+  const row={id:item.id,session_id:item.sessionId||null,machine:item.machine||null,customer_name:item.customerName||'',amount:item.amount,kind:item.kind||'',created_at:item.createdAt,date:item.date};
+  const {error}=await sb.from('gamedesk_receipts').upsert(row);if(error)throw error;
+}
+async function remoteAddExpense(e){
+  const row={id:e.id,category:e.category,amount:e.amount,date:e.date,note:e.note||'',created_at:e.createdAt};
+  const {error}=await sb.from('gamedesk_expenses').upsert(row);if(error)throw error;
+}
+async function remoteDeleteExpense(id){
+  const {error}=await sb.from('gamedesk_expenses').delete().eq('id',id);if(error)throw error;
+}
+async function remoteSaveSettings(){
+  const row={id:'main',hour_price:settings.hourPrice,half_price:settings.halfPrice,minute_price:settings.minutePrice,sound_enabled:!!settings.soundEnabled,browser_notify:!!settings.browserNotify,shop_name:settings.shopName||'',alert_phone:settings.alertPhone||'',alert_repeat:settings.alertRepeat||3};
+  const {error}=await sb.from('gamedesk_settings').upsert(row);if(error)throw error;
+}
+
+function addReceipt(data){
+  const item={id:uid(),sessionId:data.sessionId||null,machine:data.machine||null,customerName:data.customerName||'',amount:Number(data.amount)||0,kind:data.kind||'',createdAt:data.createdAt||now(),date:dateKey(new Date(data.createdAt||now()))};
+  receipts.unshift(item);saveLocal();
+  if(online)remoteAddReceipt(item).catch(e=>{console.warn(e);queueOp({t:'receipt',d:item})});else queueOp({t:'receipt',d:item});
+  return item;
 }
 
 function activeFor(id){return sessions.find(s=>s.machine===id&&s.status==='active')}
 function clock(sec){const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return (h?pad(h)+':':'')+pad(m)+':'+pad(s)}
-function beep(){if(!settings.soundEnabled)return;try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=880;g.gain.value=.08;o.start();setTimeout(()=>o.stop(),220)}catch(e){}}
-function notify(t,b){if(!settings.browserNotify||!('Notification'in window))return;if(Notification.permission==='granted')new Notification(t,{body:b,icon:'icon.svg'});else if(Notification.permission!=='denied')Notification.requestPermission()}
 
+function beep(times=1){
+  if(!settings.soundEnabled)return;
+  try{
+    if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    let i=0;
+    const play=()=>{
+      if(i>=times)return;
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='square';o.frequency.value=880+(i%2)*220;g.gain.value=0.12;
+      o.connect(g);g.connect(audioCtx.destination);o.start();
+      setTimeout(()=>{o.stop();i++;if(i<times)setTimeout(play,180)},220);
+    };
+    if(audioCtx.state==='suspended')audioCtx.resume().then(play);else play();
+  }catch(e){}
+}
+function notify(t,b){
+  if(!settings.browserNotify||!('Notification'in window))return;
+  if(Notification.permission==='granted'){try{new Notification(t,{body:b,icon:'icon.svg',requireInteraction:true})}catch(e){}}
+  else if(Notification.permission!=='denied')Notification.requestPermission();
+}
+function openWhatsAppAlert(machine,customer){
+  const phone=(settings.alertPhone||'').replace(/\D/g,'');if(!phone)return;
+  let p=phone;if(p.startsWith('0'))p='20'+p.slice(1);if(!p.startsWith('20')&&p.length===10)p='20'+p;
+  const msg=encodeURIComponent('⏰ تنبيه GameDesk\nانتهى وقت جهاز '+machine+(customer?' — '+customer:'')+'\nافتح التطبيق لإنهاء أو تمديد الجلسة.');
+  window.open('https://wa.me/'+p+'?text='+msg,'_blank');
+}
+function triggerSessionEndAlert(s){
+  const repeats=Math.max(1,Math.min(10,Number(settings.alertRepeat)||3));
+  beep(repeats);notify('انتهى وقت جهاز '+s.machine,'انتهت جلسة '+(s.customerName||'العميل')+'.');
+  openWhatsAppAlert(s.machine,s.customerName);
+  if(alertTimers[s.id])clearInterval(alertTimers[s.id]);
+  let count=0;
+  alertTimers[s.id]=setInterval(()=>{
+    count++;
+    if(count>5||!sessions.find(x=>x.id===s.id&&x.status==='active')){clearInterval(alertTimers[s.id]);delete alertTimers[s.id];return}
+    beep(2);
+  },12000);
+}
+
+function todayReceipts(){const d=localDay();return receipts.filter(r=>r.date===d)}
+function todayExpensesSum(){const d=localDay();return expenses.filter(e=>e.date===d).reduce((a,e)=>a+Number(e.amount||0),0)}
 function renderDashboard(){
-  const grid=$('machinesGrid');if(!grid)return;
+  const grid=$('machines');if(!grid)return;
+  const inc=todayReceipts().reduce((a,r)=>a+Number(r.amount||0),0);
+  const ex=todayExpensesSum();
+  const active=sessions.filter(s=>s.status==='active');
+  if($('todayIncome'))$('todayIncome').textContent=fmt(inc);
+  if($('todayExpenses'))$('todayExpenses').textContent=fmt(ex);
+  if($('todayNet'))$('todayNet').textContent=fmt(inc-ex);
+  if($('activeCount'))$('activeCount').textContent=active.length+' / 4';
+  if($('expenseTotal'))$('expenseTotal').textContent=fmt(ex);
   grid.innerHTML=machineIds.map(id=>{
     const s=activeFor(id);
-    if(!s)return `<div class="machine free"><div class="mhead"><span class="name">جهاز ${id}</span><span class="pill free">متاح</span></div><div class="mbody"><div class="timer">00:00</div><div class="detail"><span>لا توجد جلسة</span></div><div class="actions"><button data-start="${id}">بدء جلسة</button></div></div></div>`;
+    if(!s)return `<article class="machine"><div class="mhead"><h3>🎮 جهاز ${id}</h3><span class="pill free">متاح</span></div><div class="mbody"><div class="empty">الجهاز جاهز لاستقبال لاعب</div><div class="actions"><button data-start="${id}">＋ بدء جلسة</button></div></div></article>`;
     const left=Math.max(0,Math.ceil((s.endAt-now())/1000));
+    const over=s.endAt<=now();
     const remain=Math.max(0,Number(s.price)-Number(s.paid));
-    return `<div class="machine busy"><div class="mhead"><span class="name">جهاز ${id}</span><span class="pill busy">مشغول</span></div><div class="mbody">
-      <div class="timer ${left===0?'ending':'running'}" data-timer="${s.id}">${clock(left)}</div>
-      <div class="detail"><span>${esc(s.customerName||'عميل')}</span><b>${fmt(s.price)}</b></div>
-      <div class="detail"><span>مدفوع / متبقي</span><b>${fmt(s.paid)} / ${fmt(remain)}</b></div>
+    return `<article class="machine"><div class="mhead"><h3>🎮 جهاز ${id}</h3><span class="pill on">${over?'انتهى الوقت':'قيد اللعب'}</span></div><div class="mbody">
+      <div class="timer ${over?'ending':'running'}" data-timer="${s.id}">${clock(left)}</div>
+      <div class="detail"><span>العميل</span><b>${esc(s.customerName||'بدون اسم')}</b></div>
+      <div class="detail"><span>المدفوع / المتبقي</span><b>${fmt(s.paid)} / ${fmt(remain)}</b></div>
       <div class="detail"><span>ينتهي</span><b>${dtText(s.endAt)}</b></div>
       <div class="actions">
         <button class="secondary" data-extend="${s.id}">تمديد</button>
-        <button class="secondary" data-collect="${s.id}">تحصيل</button>
+        <button class="success" data-collect="${s.id}">تحصيل</button>
         <button class="danger" data-finish="${s.id}">إنهاء</button>
-      </div></div></div>`;
+      </div></div></article>`;
   }).join('');
+  const expired=active.filter(s=>s.endAt<=now());
+  if($('expiredArea'))$('expiredArea').innerHTML=expired.length?`<div class="alertbox">⏰ <b>تنبيه: انتهى الوقت</b><br>${expired.map(s=>'الجهاز '+s.machine+' — '+esc(s.customerName||'عميل')).join(' • ')}. اضغط إنهاء أو تمديد.</div>`:'';
 }
-
 function renderSessions(){
-  const q=($('sessionSearch').value||'').trim().toLowerCase(), day=$('sessionDate').value;
+  const q=($('sessionSearch')&&$('sessionSearch').value||'').trim().toLowerCase(), day=$('sessionDate')&&$('sessionDate').value;
   let rows=sessions.slice().sort((a,b)=>b.createdAt-a.createdAt);
   if(day)rows=rows.filter(s=>dateKey(new Date(s.startAt))===day);
   if(q)rows=rows.filter(s=>(s.customerName||'').toLowerCase().includes(q)||String(s.machine).includes(q)||(s.customerPhone||'').includes(q));
-  $('sessionsTable').innerHTML=rows.map(s=>{
-    const remain=Math.max(0,Number(s.price)-Number(s.paid));
+  const el=$('sessionsTable');if(!el)return;
+  el.innerHTML=rows.map(s=>{const remain=Math.max(0,Number(s.price)-Number(s.paid));
     return `<tr><td>${esc(s.machine)}</td><td>${esc(s.customerName||'—')}</td><td>${esc(s.customerPhone||'—')}</td><td>${dtText(s.startAt)}</td><td>${dtText(s.endAt)}</td><td>${fmt(s.price)}</td><td>${fmt(s.paid)}</td><td>${fmt(remain)}</td><td>${s.status==='active'?'نشطة':'منتهية'}</td></tr>`;
   }).join('')||'<tr><td colspan="9" class="empty">لا توجد جلسات</td></tr>';
 }
-
 function renderExpenses(){
-  const day=$('expenseFilterDate').value;
+  const day=$('expenseFilterDate')&&$('expenseFilterDate').value;
   let rows=expenses.slice().sort((a,b)=>b.createdAt-a.createdAt);
   if(day)rows=rows.filter(e=>e.date===day);
-  $('expensesTable').innerHTML=rows.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.category)}</td><td>${esc(e.note||'—')}</td><td class="moneyminus">${fmt(e.amount)}</td><td><button class="danger" onclick="window.deleteExpense('${e.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">لا توجد مصروفات في هذا التاريخ</td></tr>';
+  const el=$('expensesTable');if(!el)return;
+  el.innerHTML=rows.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.category)}</td><td>${esc(e.note||'—')}</td><td class="moneyminus">${fmt(e.amount)}</td><td><button class="danger" onclick="window.deleteExpense('${e.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">لا توجد مصروفات</td></tr>';
 }
-
 function renderReceipts(){
   const rows=receipts.slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0,80);
-  $('receiptsTable').innerHTML=rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${dtText(r.createdAt)}</td><td>${esc(r.kind)}</td><td>${esc(r.customerName||'—')}</td><td>جهاز ${esc(r.machine||'—')}</td><td class="moneyplus">${fmt(r.amount)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد تحصيلات</td></tr>';
+  const el=$('receiptsTable');if(!el)return;
+  el.innerHTML=rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${dtText(r.createdAt)}</td><td>${esc(r.kind)}</td><td>${esc(r.customerName||'—')}</td><td>جهاز ${esc(r.machine||'—')}</td><td class="moneyplus">${fmt(r.amount)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد تحصيلات</td></tr>';
 }
-
 function applySettings(){
-  $('hourPrice').value=settings.hourPrice;
-  $('halfPrice').value=settings.halfPrice;
-  $('minutePrice').value=settings.minutePrice;
-  $('soundEnabled').checked=!!settings.soundEnabled;
-  $('browserNotify').checked=!!settings.browserNotify;
-  $('shopName').value=settings.shopName||'';
+  if($('hourPrice'))$('hourPrice').value=settings.hourPrice;
+  if($('halfPrice'))$('halfPrice').value=settings.halfPrice;
+  if($('minutePrice'))$('minutePrice').value=settings.minutePrice;
+  if($('soundEnabled'))$('soundEnabled').checked=!!settings.soundEnabled;
+  if($('browserNotify'))$('browserNotify').checked=!!settings.browserNotify;
+  if($('shopName'))$('shopName').value=settings.shopName||'';
+  if($('alertPhone'))$('alertPhone').value=settings.alertPhone||'';
+  if($('alertRepeat'))$('alertRepeat').value=settings.alertRepeat||3;
   showApp();
 }
-
 function renderAll(){if(!ready)return;renderDashboard();renderSessions();renderExpenses();renderReceipts();applySettings()}
 
 function openStart(id){
-  $('sessionMachine').value=id;
-  $('dialogTitle').textContent='بدء جلسة — جهاز '+id;
+  $('sessionMachine').value=id;$('dialogTitle').textContent='بدء جلسة — جهاز '+id;
   $('customerName').value='';$('customerPhone').value='';$('durationValue').value=1;$('durationUnit').value='60';
   $('sessionPrice').value=settings.hourPrice;$('sessionPaid').value=settings.hourPrice;$('sessionNote').value='';
   $('priceHint').textContent='السعر المقترح: ساعة '+fmt(settings.hourPrice)+' • نصف ساعة '+fmt(settings.halfPrice)+' • دقيقة '+fmt(settings.minutePrice);
   $('sessionDialog').showModal();
 }
-
 function suggestPrice(){
   const u=Number($('durationUnit').value),v=Number($('durationValue').value)||1;
-  let p=0;
-  if(u===60)p=v*settings.hourPrice;
-  else if(u===30)p=v*settings.halfPrice;
-  else p=v*settings.minutePrice;
+  let p=u===60?v*settings.hourPrice:u===30?v*settings.halfPrice:v*settings.minutePrice;
   $('sessionPrice').value=Math.round(p*100)/100;
-  if(Number($('sessionPaid').value)===0||Number($('sessionPaid').value)===Number($('sessionPrice').value)) $('sessionPaid').value=$('sessionPrice').value;
+  if(Number($('sessionPaid').value)===0||Number($('sessionPaid').value)===Number($('sessionPrice').value))$('sessionPaid').value=$('sessionPrice').value;
 }
 
-async function finishSession(id){
+function finishSession(id){
   const s=sessions.find(x=>x.id===id);if(!s)return;
+  if(alertTimers[id]){clearInterval(alertTimers[id]);delete alertTimers[id]}
   const left=Math.max(0,Number(s.price)-Number(s.paid));
   $('actionTitle').textContent='إنهاء الجلسة — جهاز '+s.machine;
-  $('actionBody').innerHTML=`<p class="muted">المتبقي: <b>${fmt(left)}</b></p>
-    <div class="actions" style="margin-top:14px">
-      <button id="finCollect">تحصيل المتبقي وإنهاء</button>
-      <button class="secondary" id="finOnly">إنهاء بدون تحصيل</button>
-      <button class="danger" id="finCancel">إلغاء</button>
-    </div>`;
+  $('actionBody').innerHTML=`<p class="muted">المتبقي: <b>${fmt(left)}</b></p><div class="actions" style="margin-top:14px"><button id="finCollect">تحصيل المتبقي وإنهاء</button><button class="secondary" id="finOnly">إنهاء بدون تحصيل</button><button class="danger" id="finCancel">إلغاء</button></div>`;
   $('actionDialog').showModal();
   $('finCancel').onclick=()=>$('actionDialog').close();
-  $('finOnly').onclick=async()=>{try{await sb.from('gamedesk_sessions').update({status:'finished',finished_at:now()}).eq('id',id);$('actionDialog').close();toast('انتهت الجلسة','بدون تحصيل إضافي.')}catch(e){toast('خطأ',e.message)}};
-  $('finCollect').onclick=async()=>{try{
-    if(left>0){await addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount:left,kind:'تحصيل عند الإنهاء'});await sb.from('gamedesk_sessions').update({paid:Number(s.paid)+left,status:'finished',finished_at:now()}).eq('id',id)}
-    else await sb.from('gamedesk_sessions').update({status:'finished',finished_at:now()}).eq('id',id);
-    $('actionDialog').close();toast('انتهت الجلسة','تم تسجيل التحصيل.')
-  }catch(e){toast('خطأ',e.message)}};
+  $('finOnly').onclick=()=>{s.status='finished';s.finishedAt=now();saveLocal();if(online)remoteUpdateSession(id,{status:'finished',finishedAt:s.finishedAt}).catch(console.warn);$('actionDialog').close();renderAll();toast('انتهت الجلسة','بدون تحصيل إضافي.')};
+  $('finCollect').onclick=()=>{
+    if(left>0){addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount:left,kind:'تحصيل عند الإنهاء'});s.paid=Number(s.paid)+left}
+    s.status='finished';s.finishedAt=now();saveLocal();
+    if(online)remoteUpdateSession(id,{status:'finished',paid:s.paid,finishedAt:s.finishedAt}).catch(console.warn);
+    $('actionDialog').close();renderAll();toast('انتهت الجلسة','تم تسجيل التحصيل.');
+  };
 }
-
-async function collectSession(id){
+function collectSession(id){
   const s=sessions.find(x=>x.id===id);if(!s)return;
   const left=Math.max(0,Number(s.price)-Number(s.paid));
   $('actionTitle').textContent='تحصيل — جهاز '+s.machine;
-  $('actionBody').innerHTML=`<p class="muted">المتبقي حالياً: <b>${fmt(left)}</b></p>
-    <div class="field"><label>المبلغ المحصّل</label><input id="collectAmount" type="number" min="0" step=".5" value="${left}"></div>
-    <div class="actions"><button id="doCollect">تأكيد التحصيل</button><button class="secondary" id="cancelCollect">إلغاء</button></div>`;
+  $('actionBody').innerHTML=`<p class="muted">المتبقي حالياً: <b>${fmt(left)}</b></p><div class="field"><label>المبلغ المحصّل</label><input id="collectAmount" type="number" min="0" step=".5" value="${left}"></div><div class="actions"><button id="doCollect">تأكيد التحصيل</button><button class="secondary" id="cancelCollect">إلغاء</button></div>`;
   $('actionDialog').showModal();
   $('cancelCollect').onclick=()=>$('actionDialog').close();
-  $('doCollect').onclick=async()=>{const amount=Number($('collectAmount').value);if(!(amount>0))return;try{
-    await addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount,kind:'تحصيل جزئي'});
-    await sb.from('gamedesk_sessions').update({paid:Number(s.paid)+amount}).eq('id',id);
-    $('actionDialog').close();toast('تم التحصيل',fmt(amount));
-  }catch(e){toast('خطأ',e.message)}};
+  $('doCollect').onclick=()=>{
+    const amount=Number($('collectAmount').value);if(!(amount>0))return;
+    addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount,kind:'تحصيل جزئي'});
+    s.paid=Number(s.paid)+amount;saveLocal();
+    if(online)remoteUpdateSession(id,{paid:s.paid}).catch(console.warn);
+    $('actionDialog').close();renderAll();toast('تم التحصيل',fmt(amount));
+  };
 }
-
-async function extendSession(id){
+function extendSession(id){
   const s=sessions.find(x=>x.id===id);if(!s)return;
+  if(alertTimers[id]){clearInterval(alertTimers[id]);delete alertTimers[id]}
+  knownExpired.delete(id);
   $('actionTitle').textContent='تمديد — جهاز '+s.machine;
-  $('actionBody').innerHTML=`
-    <div class="formgrid">
-      <div class="field"><label>مدة التمديد</label><div class="inline"><input id="extValue" type="number" min="1" value="1"><select id="extUnit"><option value="60">ساعة</option><option value="30">نصف ساعة</option><option value="1">دقيقة</option></select></div></div>
-      <div class="field"><label>سعر التمديد</label><input id="extPrice" type="number" min="0" step=".5" value="${settings.hourPrice}"></div>
-      <div class="field"><label>المدفوع الآن</label><input id="extPaid" type="number" min="0" step=".5" value="${settings.hourPrice}"></div>
-    </div>
-    <div class="actions"><button id="doExtend">تأكيد التمديد</button><button class="secondary" id="cancelExt">إلغاء</button></div>`;
+  $('actionBody').innerHTML=`<div class="formgrid"><div class="field"><label>مدة التمديد</label><div class="inline"><input id="extValue" type="number" min="1" value="1"><select id="extUnit"><option value="60">ساعة</option><option value="30">نصف ساعة</option><option value="1">دقيقة</option></select></div></div><div class="field"><label>سعر التمديد</label><input id="extPrice" type="number" min="0" step=".5" value="${settings.hourPrice}"></div><div class="field"><label>المدفوع الآن</label><input id="extPaid" type="number" min="0" step=".5" value="${settings.hourPrice}"></div></div><div class="actions"><button id="doExtend">تأكيد التمديد</button><button class="secondary" id="cancelExt">إلغاء</button></div>`;
   $('actionDialog').showModal();
   const suggest=()=>{const u=Number($('extUnit').value),v=Number($('extValue').value)||1;let p=u===60?v*settings.hourPrice:u===30?v*settings.halfPrice:v*settings.minutePrice;$('extPrice').value=Math.round(p*100)/100;$('extPaid').value=$('extPrice').value};
   $('extUnit').onchange=suggest;$('extValue').oninput=suggest;suggest();
   $('cancelExt').onclick=()=>$('actionDialog').close();
-  $('doExtend').onclick=async()=>{
+  $('doExtend').onclick=()=>{
     const mins=Number($('extValue').value)*Number($('extUnit').value),price=Number($('extPrice').value),paid=Number($('extPaid').value);
     if(mins<=0||price<0||paid<0||paid>price){toast('راجع البيانات','');return}
-    try{
-      const endAt=Math.max(s.endAt,now())+mins*60000;
-      if(paid>0)await addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount:paid,kind:'دفعة تمديد'});
-      await sb.from('gamedesk_sessions').update({end_at:endAt,duration_min:Number(s.durationMin)+mins,price:Number(s.price)+price,paid:Number(s.paid)+paid}).eq('id',id);
-      $('actionDialog').close();toast('تم التمديد','أضيف '+mins+' دقيقة.');
-    }catch(e){toast('خطأ',e.message)}
+    const endAt=Math.max(s.endAt,now())+mins*60000;
+    if(paid>0)addReceipt({sessionId:id,machine:s.machine,customerName:s.customerName,amount:paid,kind:'دفعة تمديد'});
+    s.endAt=endAt;s.durationMin=Number(s.durationMin)+mins;s.price=Number(s.price)+price;s.paid=Number(s.paid)+paid;saveLocal();
+    if(online)remoteUpdateSession(id,{endAt,durationMin:s.durationMin,price:s.price,paid:s.paid}).catch(console.warn);
+    $('actionDialog').close();renderAll();toast('تم التمديد','أضيف '+mins+' دقيقة.');
   };
 }
-
-window.deleteExpense=async id=>{if(!confirm('تأكيد حذف المصروف؟ سيؤثر ذلك على التقارير.'))return;try{await sb.from('gamedesk_expenses').delete().eq('id',id);toast('حُذف المصروف','')}catch(e){toast('تعذر الحذف',e.message)}};
+window.deleteExpense=id=>{if(!confirm('تأكيد حذف المصروف؟'))return;expenses=expenses.filter(e=>e.id!==id);saveLocal();if(online)remoteDeleteExpense(id).catch(console.warn);renderAll();toast('حُذف المصروف','')};
 
 function runReport(){
-  const from=$('reportFrom').value,to=$('reportTo').value;
-  const inRange=(d)=>{if(!from&&!to)return true;if(from&&d<from)return false;if(to&&d>to)return false;return true};
-  const rec=receipts.filter(r=>inRange(r.date));
-  const exp=expenses.filter(e=>inRange(e.date));
-  const sess=sessions.filter(s=>inRange(dateKey(new Date(s.startAt))));
-  const totalIn=rec.reduce((a,r)=>a+Number(r.amount),0);
-  const totalOut=exp.reduce((a,e)=>a+Number(e.amount),0);
-  const totalSessionValue=sess.reduce((a,s)=>a+Number(s.price),0);
-  $('reportSummary').innerHTML=`
-    <div class="grid2">
-      <div class="card"><div class="muted">إجمالي التحصيلات</div><div class="big moneyplus">${fmt(totalIn)}</div></div>
-      <div class="card"><div class="muted">إجمالي المصروفات</div><div class="big moneyminus">${fmt(totalOut)}</div></div>
-      <div class="card"><div class="muted">صافي الحركة النقدية</div><div class="big">${fmt(totalIn-totalOut)}</div></div>
-      <div class="card"><div class="muted">قيمة الجلسات</div><div class="big">${fmt(totalSessionValue)}</div></div>
-    </div>
-    <p class="muted" style="margin-top:12px">عدد الجلسات: ${sess.length} • عدد التحصيلات: ${rec.length} • عدد المصروفات: ${exp.length}</p>`;
+  const from=$('reportFrom')?$('reportFrom').value:'',to=$('reportTo')?$('reportTo').value:'';
+  const inRange=d=>{if(!from&&!to)return true;if(from&&d<from)return false;if(to&&d>to)return false;return true};
+  const rec=receipts.filter(r=>inRange(r.date)),exp=expenses.filter(e=>inRange(e.date)),sess=sessions.filter(s=>inRange(dateKey(new Date(s.startAt))));
+  const totalIn=rec.reduce((a,r)=>a+Number(r.amount),0),totalOut=exp.reduce((a,e)=>a+Number(e.amount),0),totalSessionValue=sess.reduce((a,s)=>a+Number(s.price),0);
+  if($('rIncome'))$('rIncome').textContent=fmt(totalIn);
+  if($('rExpenses'))$('rExpenses').textContent=fmt(totalOut);
+  if($('rNet'))$('rNet').textContent=fmt(totalIn-totalOut);
+  if($('rSales'))$('rSales').textContent=fmt(totalSessionValue);
+  renderReceipts();
 }
 
-// Events
 document.addEventListener('click',e=>{
   const t=e.target;
   if(t.dataset.start)openStart(Number(t.dataset.start));
@@ -357,59 +441,157 @@ document.addEventListener('click',e=>{
   if(t.dataset.collect)collectSession(t.dataset.collect);
   if(t.dataset.extend)extendSession(t.dataset.extend);
 });
-$('closeDialog').onclick=()=>$('sessionDialog').close();
-$('closeAction').onclick=()=>$('actionDialog').close();
-$('durationUnit').onchange=suggestPrice;$('durationValue').oninput=suggestPrice;
-$('sessionForm').addEventListener('submit',async e=>{
+if($('closeDialog'))$('closeDialog').onclick=()=>$('sessionDialog').close();
+if($('closeAction'))$('closeAction').onclick=()=>$('actionDialog').close();
+if($('durationUnit'))$('durationUnit').onchange=suggestPrice;if($('durationValue'))$('durationValue').oninput=suggestPrice;
+
+if($('sessionForm'))$('sessionForm').addEventListener('submit',e=>{
   e.preventDefault();
   const id=Number($('sessionMachine').value),durationMin=Math.max(1,Number($('durationValue').value)*Number($('durationUnit').value)),price=Number($('sessionPrice').value),paid=Number($('sessionPaid').value);
-  if(activeFor(id)){toast('الجهاز مشغول','تم بدء جلسة أخرى على هذا الجهاز.');return}
-  if(price<0||paid<0||paid>price){toast('راجع المبالغ','المدفوع يجب ألا يتجاوز السعر الإجمالي.');return}
+  if(activeFor(id)){toast('الجهاز مشغول','');return}
+  if(price<0||paid<0||paid>price){toast('راجع المبالغ','');return}
   const startAt=now();
-  const row={machine:id,customer_name:$('customerName').value.trim(),customer_phone:$('customerPhone').value.trim(),duration_min:durationMin,price,paid,note:$('sessionNote').value.trim(),start_at:startAt,end_at:startAt+durationMin*60000,status:'active',created_at:startAt};
-  try{
-    const {data:ref,error}=await sb.from('gamedesk_sessions').insert(row).select().single();
-    if(error)throw error;
-    if(paid>0)await addReceipt({sessionId:ref.id,machine:id,customerName:row.customer_name,amount:paid,kind:'دفعة بداية',createdAt:startAt});
-    $('sessionDialog').close();toast('بدأت الجلسة','العداد يعمل الآن على جهاز '+id);
-  }catch(err){toast('خطأ في الحفظ','تعذر حفظ الجلسة: '+err.message)}
+  const s={id:uid(),machine:id,customerName:$('customerName').value.trim(),customerPhone:$('customerPhone').value.trim(),durationMin,price,paid,note:$('sessionNote').value.trim(),startAt,endAt:startAt+durationMin*60000,status:'active',createdAt:startAt};
+  sessions.unshift(s);saveLocal();
+  if(online)remoteAddSession(s).catch(e=>{console.warn(e);queueOp({t:'session',d:s})});else queueOp({t:'session',d:s});
+  if(paid>0)addReceipt({sessionId:s.id,machine:id,customerName:s.customerName,amount:paid,kind:'دفعة بداية',createdAt:startAt});
+  $('sessionDialog').close();renderAll();toast('بدأت الجلسة','جهاز '+id);
 });
 
-$('expenseForm').addEventListener('submit',async e=>{
+if($('expenseForm'))$('expenseForm').addEventListener('submit',e=>{
   e.preventDefault();
   const amount=Number($('expenseAmount').value);if(!Number.isFinite(amount)||amount<=0)return;
-  try{
-    await sb.from('gamedesk_expenses').insert({category:$('expenseCategory').value,amount,date:$('expenseDate').value,note:$('expenseNote').value.trim(),created_at:now()});
-    $('expenseAmount').value='';$('expenseNote').value='';
-    toast('تم حفظ المصروف','أضيف إلى حسابات اليوم.');
-  }catch(err){toast('تعذر الحفظ',err.message)}
+  const row={id:uid(),category:$('expenseCategory').value,amount,date:$('expenseDate').value,note:$('expenseNote').value.trim(),createdAt:now()};
+  expenses.unshift(row);saveLocal();
+  if(online)remoteAddExpense(row).catch(e=>{console.warn(e);queueOp({t:'expense',d:row})});else queueOp({t:'expense',d:row});
+  $('expenseAmount').value='';$('expenseNote').value='';renderAll();toast('تم حفظ المصروف','');
 });
 
-$('savePrices').onclick=async()=>{
-  const next={hour_price:Number($('hourPrice').value),half_price:Number($('halfPrice').value),minute_price:Number($('minutePrice').value)};
-  try{await sb.from('gamedesk_settings').update(next).eq('id','main');toast('حُفظت الأسعار','')}catch(e){toast('تعذر الحفظ',e.message)}
+if($('settingsForm'))$('settingsForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  settings.hourPrice=Number($('hourPrice').value);settings.halfPrice=Number($('halfPrice').value);settings.minutePrice=Number($('minutePrice').value);
+  saveLocal();if(online)remoteSaveSettings().catch(e=>{console.warn(e);queueOp({t:'settings'})});else queueOp({t:'settings'});
+  toast('حُفظت الأسعار','');
+});
+if($('savePrefs'))$('savePrefs').onclick=()=>{
+  settings.soundEnabled=$('soundEnabled').checked;settings.browserNotify=$('browserNotify').checked;settings.shopName=$('shopName').value.trim();
+  if($('alertPhone'))settings.alertPhone=$('alertPhone').value.trim();
+  if($('alertRepeat'))settings.alertRepeat=Number($('alertRepeat').value)||3;
+  saveLocal();if(online)remoteSaveSettings().catch(e=>{console.warn(e);queueOp({t:'settings'})});else queueOp({t:'settings'});
+  toast('حُفظت التفضيلات','');
 };
-$('savePrefs').onclick=async()=>{
-  try{await sb.from('gamedesk_settings').update({sound_enabled:$('soundEnabled').checked,browser_notify:$('browserNotify').checked,shop_name:$('shopName').value.trim()}).eq('id','main');toast('حُفظت التفضيلات','')}catch(e){toast('تعذر الحفظ',e.message)}
+
+const enBtn=$('enableNotify');
+if(enBtn)enBtn.onclick=async()=>{
+  try{if(audioCtx&&audioCtx.state==='suspended')await audioCtx.resume()}catch(e){}
+  beep(2);
+  if('Notification'in window){const p=await Notification.requestPermission();toast(p==='granted'?'التنبيهات مفعّلة':'لم يتم منح الإذن','')}
 };
 
-document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',e=>{const btn=e.target.closest('button[data-page]');if(!btn)return;document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('[id^="page-"]').forEach(x=>x.classList.add('hidden'));$('page-'+btn.dataset.page).classList.remove('hidden');if(btn.dataset.page==='reports')runReport()}));
-$('sessionSearch').addEventListener('input',renderSessions);$('sessionDate').addEventListener('change',renderSessions);$('expenseFilterDate').addEventListener('change',renderExpenses);$('runReport').onclick=runReport;$('printReport').onclick=()=>window.print();
-$('exportData').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),sessions,expenses,receipts,settings},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gamedesk-backup-'+localDay()+'.json';a.click();URL.revokeObjectURL(a.href)};
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-page]');if(!btn)return;
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===btn));
+  document.querySelectorAll('[id^="page-"]').forEach(x=>x.classList.add('hidden'));
+  $('page-'+btn.dataset.page).classList.remove('hidden');
+  if(btn.dataset.page==='reports')runReport();
+}));
+if($('sessionSearch'))$('sessionSearch').addEventListener('input',renderSessions);
+if($('sessionDate'))$('sessionDate').addEventListener('change',renderSessions);
+if($('expenseFilterDate'))$('expenseFilterDate').addEventListener('change',renderExpenses);
+if($('runReport'))$('runReport').onclick=runReport;
+if($('printReport'))$('printReport').onclick=()=>window.print();
+if($('quickAddBtn'))$('quickAddBtn').onclick=()=>{const free=machineIds.find(id=>!activeFor(id));if(free)openStart(free);else toast('كل الأجهزة مشغولة','')};
+if($('exportData'))$('exportData').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),sessions,expenses,receipts,settings},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gamedesk-backup-'+localDay()+'.json';a.click();URL.revokeObjectURL(a.href)};
+if($('importData'))$('importData').onclick=()=>{
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=async()=>{try{const data=JSON.parse(await inp.files[0].text());if(data.settings)settings={...defaultSettings,...data.settings};if(Array.isArray(data.sessions))sessions=data.sessions;if(Array.isArray(data.expenses))expenses=data.expenses;if(Array.isArray(data.receipts))receipts=data.receipts;saveLocal();renderAll();toast('تم الاستيراد','')}catch(e){toast('فشل الاستيراد','')}};
+  inp.click();
+};
 
-setInterval(()=>{if(!ready)return;const active=sessions.filter(s=>s.status==='active');let changed=false;active.forEach(s=>{const el=document.querySelector(`[data-timer="${s.id}"]`),left=Math.max(0,Math.ceil((s.endAt-now())/1000));if(el){el.textContent=clock(left);el.classList.toggle('ending',left===0)}if(left===0&&!knownExpired.has(s.id)){knownExpired.add(s.id);beep();notify('انتهى وقت جهاز '+s.machine,'انتهت جلسة '+(s.customerName||'العميل')+'. يمكنك إنهاء الجلسة أو تمديدها.');changed=true}});if(changed)renderDashboard()},1000);
+setInterval(()=>{
+  if(!ready)return;
+  const active=sessions.filter(s=>s.status==='active');let changed=false;
+  active.forEach(s=>{
+    const el=document.querySelector(`[data-timer="${s.id}"]`);
+    const left=Math.max(0,Math.ceil((s.endAt-now())/1000));
+    if(el){el.textContent=clock(left);el.classList.toggle('ending',left===0)}
+    if(left===0&&!knownExpired.has(s.id)){knownExpired.add(s.id);triggerSessionEndAlert(s);changed=true}
+  });
+  if(changed)renderDashboard();
+},1000);
 
-async function start(){
-  if(typeof SUPABASE_URL==='undefined'||!SUPABASE_URL||SUPABASE_URL.includes('YOUR_')){setStatus('Supabase غير مضبوط');return}
+function injectAlertSettings(){
+  const soundEl=$('soundEnabled');if(!soundEl||$('alertPhone'))return;
+  const parent=soundEl.closest('.field')||soundEl.parentElement;
+  const container=parent&&parent.parentElement;if(!container)return;
+  container.insertAdjacentHTML('beforeend',`<div class="field"><label>رقم واتساب للتنبيه (اختياري)</label><input id="alertPhone" type="tel" placeholder="01xxxxxxxxx" maxlength="15"><p class="muted small">عند انتهاء الجلسة يفتح واتساب برسالة جاهزة</p></div><div class="field"><label>عدد مرات الرنة</label><input id="alertRepeat" type="number" min="1" max="10" value="3"></div>`);
+}
+
+async function flushPending(){
+  if(!sb||!pendingOps.length)return;
+  const left=[];
+  for(const op of pendingOps){
+    try{
+      if(op.t==='session')await remoteAddSession(op.d);
+      else if(op.t==='sessionUp')await remoteUpdateSession(op.id,op.d);
+      else if(op.t==='receipt')await remoteAddReceipt(op.d);
+      else if(op.t==='expense')await remoteAddExpense(op.d);
+      else if(op.t==='expenseDel')await remoteDeleteExpense(op.id);
+      else if(op.t==='settings')await remoteSaveSettings();
+    }catch(e){left.push(op);console.warn('pending',e)}
+  }
+  pendingOps=left;saveLocal();
+}
+function queueOp(op){pendingOps.push(op);saveLocal()}
+async function connectCloud(){
+  const _url=(typeof SUPABASE_URL!=='undefined'&&SUPABASE_URL)||window.SUPABASE_URL||'';const _key=(typeof SUPABASE_ANON_KEY!=='undefined'&&SUPABASE_ANON_KEY)||window.SUPABASE_ANON_KEY||'';
+  if(!_url||_url.includes('YOUR_')){
+    setStatus('محلي فقط • شغّال بدون سحابة');
+    return;
+  }
   try{
-    sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-    showApp();
-    await loadAll();
+    setStatus('مزامنة في الخلفية...');
+    if(typeof supabase==='undefined'){setStatus('جاهز محليًا • مكتبة السحابة لم تُحمّل');return;}
+    sb=supabase.createClient(_url,_key,{auth:{persistSession:false,autoRefreshToken:false}});
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000));
+    await Promise.race([pullRemote(),timeout]);
+    online=true;
+    await flushPending();
     subscribeData();
-    $('expenseDate').value=localDay();$('expenseFilterDate').value=localDay();$('sessionDate').value=localDay();$('reportFrom').value=localDay();$('reportTo').value=localDay();
-  }catch(e){setStatus('خطأ في الاتصال');toast('تعذر الاتصال بـ Supabase',e.message);console.error(e)}
+    renderAll();
+    setStatus('متصل • متزامن بين الأجهزة');
+  }catch(e){
+    console.warn('cloud',e);
+    online=false;
+    setStatus('محلي • شغّال عادي (هيتزامن لما النت يستقر)');
+  }
+}
+
+function start(){
+  try{
+    loadLocal();
+    ready=true;
+    showApp();
+    try{injectAlertSettings()}catch(e){console.warn(e)}
+    try{applySettings()}catch(e){console.warn(e)}
+    try{renderAll()}catch(e){console.warn(e)}
+    setStatus('جاهز • تقدر تشتغل دلوقتي');
+    if($('expenseDate'))$('expenseDate').value=localDay();
+    if($('expenseFilterDate'))$('expenseFilterDate').value=localDay();
+    if($('sessionDate'))$('sessionDate').value=localDay();
+    if($('reportFrom'))$('reportFrom').value=localDay();
+    if($('reportTo'))$('reportTo').value=localDay();
+    // المزامنة لاحقًا — مش هتوقف الواجهة
+    setTimeout(()=>{connectCloud().catch(e=>console.warn(e))},50);
+  }catch(e){
+    console.error(e);
+    ready=true;
+    try{showApp();renderDashboard()}catch(_){ }
+    setStatus('جاهز (وضع طوارئ)');
+  }
 }
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+// تشغيل فوري حتى لو السكربتات الخارجية اتأخرت
 start();
 })();
 </script>
