@@ -94,7 +94,7 @@
     <div class="notice" style="margin-top:15px">إشعارات الهاتف تعمل بعد منح إذن الإشعارات، ويفضل تثبيت الموقع كتطبيق وإبقاؤه مفتوحًا. التنبيه عند إغلاق المتصفح بالكامل ليس مضمونًا إلا بعد إعداد خدمة إشعارات خلفية إضافية.</div>
    </div>
   </div>
-  <div class="panel" style="margin-top:14px"><h2 class="subheading">نسخة احتياطية</h2><p class="muted small">البيانات تتزامن على Supabase بين الأجهزة. صدّر نسخة احتياطية احتياطاً.</p><button class="secondary" id="exportData">تصدير نسخة JSON</button> <button class="secondary" id="importData">استيراد نسخة</button></div>
+  <div class="panel" style="margin-top:14px"><h2 class="subheading">نسخة احتياطية</h2><p class="muted small">البيانات تتخزن في قاعدة البيانات السحابية وتتزامن تلقائيًا. التطبيق يفتح ويشتغل حتى بدون نت من النسخة المحلية. صدّر نسخة JSON احتياطية بانتظام.</p><button class="secondary" id="exportData">تصدير نسخة JSON</button> <button class="secondary" id="importData">استيراد نسخة</button></div>
  </section>
 </div>
 <div class="toastbox" id="toastbox"></div>
@@ -578,12 +578,12 @@ function queueOp(op){pendingOps.push(op);saveLocal()}
 async function connectCloud(){
   const _url=(typeof SUPABASE_URL!=='undefined'&&SUPABASE_URL)||window.SUPABASE_URL||'';const _key=(typeof SUPABASE_ANON_KEY!=='undefined'&&SUPABASE_ANON_KEY)||window.SUPABASE_ANON_KEY||'';
   if(!_url||_url.includes('YOUR_')){
-    setStatus('محلي فقط • شغّال بدون سحابة');
+    setStatus('محلي • البيانات محفوظة وهتتزامن عند الاتصال');
     return;
   }
   try{
     setStatus('مزامنة في الخلفية...');
-    if(typeof supabase==='undefined'){setStatus('جاهز محليًا • مكتبة السحابة لم تُحمّل');return;}
+    if(typeof supabase==='undefined'){setStatus('محلي • شغال عادي (المزامنة مش متاحة دلوقتي)');return;}
     sb=supabase.createClient(_url,_key,{auth:{persistSession:false,autoRefreshToken:false}});
     const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000));
     await Promise.race([pullRemote(),timeout]);
@@ -591,11 +591,11 @@ async function connectCloud(){
     await flushPending();
     subscribeData();
     renderAll();
-    setStatus('متصل • متزامن بين الأجهزة');
+    setStatus('متصل • متزامن مع قاعدة البيانات');
   }catch(e){
     console.warn('cloud',e);
     online=false;
-    setStatus('محلي • شغّال عادي (هيتزامن لما النت يستقر)');
+    setStatus('محلي • شغال عادي (هيتزامن لما النت يستقر)');
   }
 }
 
@@ -607,7 +607,7 @@ function start(){
     try{injectAlertSettings()}catch(e){console.warn(e)}
     try{applySettings()}catch(e){console.warn(e)}
     try{renderAll()}catch(e){console.warn(e)}
-    setStatus('جاهز • تقدر تشتغل دلوقتي');
+    setStatus('جاهز • شغال (هيتزامن لما النت يبقى متاح)');
     if($('expenseDate'))$('expenseDate').value=localDay();
     if($('expenseFilterDate'))$('expenseFilterDate').value=localDay();
     if($('sessionDate'))$('sessionDate').value=localDay();
